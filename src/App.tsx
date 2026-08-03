@@ -320,7 +320,7 @@ export default function App() {
           ) : (
             <>
               <Save className="w-6 h-6" />
-              재고 내역 저장 및 공유
+              재고 내역 저장
             </>
           )}
         </button>
