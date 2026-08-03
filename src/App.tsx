@@ -226,7 +226,7 @@ export default function App() {
     navigator.clipboard.writeText(textContent);
 
     const element = document.createElement("a");
-    const file = new Blob([textContent], {type: 'text/plain'});
+    const file = new Blob(["\uFEFF" + textContent], {type: 'text/plain;charset=utf-8'}); 
     element.href = URL.createObjectURL(file);
     element.download = `테라커피_재고조사_${new Date().toISOString().split('T')[0]}.txt`;
     document.body.appendChild(element);
