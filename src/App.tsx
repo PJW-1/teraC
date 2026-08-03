@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { 
   Plus, Minus, Search, Coffee, 
-  Milk, Droplets, Inbox, Package, Save, CheckCircle2, History, X, Copy,
+  Droplets, Inbox, Save, CheckCircle2, History, X, Copy,
   CupSoda, Cake, IceCream, ShoppingBag, Utensils
 } from 'lucide-react';
 
