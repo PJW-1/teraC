@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { 
   Plus, Minus, Search, Coffee, 
   Droplets, Inbox, Save, CheckCircle2, History, X, Copy,
-  CupSoda, Cake, IceCream, ShoppingBag, Utensils
+  CupSoda, Cake, IceCream, ShoppingBag, Utensils, RotateCcw 
 } from 'lucide-react';
 
 // --- 재고 데이터 구조 정의 ---
@@ -119,7 +119,6 @@ const INITIAL_DATA: InventoryItem[] = [
 ];
 
 export default function App() {
-  // --- 기존 상태(State) ---
   const [items, setItems] = useState<InventoryItem[]>(() => {
     const saved = localStorage.getItem('inventory_items');
     return saved ? JSON.parse(saved) : INITIAL_DATA;
@@ -133,13 +132,10 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showSaved, setShowSaved] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-
-  // --- 새로 추가된 상태: '품목 추가 모달' 관련 ---
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItemName, setNewItemName] = useState('');
   const [newItemCategory, setNewItemCategory] = useState(CATEGORIES[0].name);
 
-  // 로컬 스토리지 자동 저장
   useEffect(() => {
     localStorage.setItem('inventory_items', JSON.stringify(items));
   }, [items]);
@@ -148,7 +144,6 @@ export default function App() {
     localStorage.setItem('inventory_history', JSON.stringify(history));
   }, [history]);
 
-  // 기존 재고 업데이트 로직
   const updateCount = (id: string, delta: number) => {
     setItems(prev => prev.map(item => 
       item.id === id ? { ...item, count: Math.max(0, item.count + delta) } : item
@@ -162,20 +157,17 @@ export default function App() {
     ));
   };
 
-  // --- 새로 추가된 함수: 품목 등록 로직 ---
   const handleAddItem = () => {
     if (!newItemName.trim()) {
       alert("품목 이름을 입력해주세요.");
       return;
     }
     
-    // 중복 체크
     if (items.some(item => item.name === newItemName.trim())) {
       alert("이미 존재하는 품목입니다.");
       return;
     }
 
-    // 새 품목 객체 생성 (id는 현재 시간을 밀리초로 써서 겹치지 않게 만듦)
     const newItem: InventoryItem = {
       id: Date.now().toString(),
       name: newItemName.trim(),
@@ -183,10 +175,18 @@ export default function App() {
       count: 0
     };
 
-    setItems(prev => [...prev, newItem]); // 리스트에 추가
-    setNewItemName(''); // 입력창 초기화
-    setNewItemCategory(CATEGORIES[0].name); // 카테고리 초기화
-    setShowAddModal(false); // 모달창 닫기
+    setItems(prev => [...prev, newItem]);
+    setNewItemName('');
+    setNewItemCategory(CATEGORIES[0].name);
+    setShowAddModal(false);
+  };
+
+  // 🔴 신규 기능: 전체 수량 초기화 (실수 방지 확인창 포함)
+  const handleResetAll = () => {
+    const isConfirmed = window.confirm("⚠️ 정말 모든 재고 수량을 '0'으로 초기화하시겠습니까?\n(등록된 품목은 삭제되지 않습니다.)");
+    if (isConfirmed) {
+      setItems(prev => prev.map(item => ({ ...item, count: 0 })));
+    }
   };
 
   const filteredItems = useMemo(() => {
@@ -196,7 +196,6 @@ export default function App() {
     );
   }, [items, searchTerm]);
 
-  // 리포트 텍스트 생성
   const generateReportText = (inventory: InventoryItem[]) => {
     const date = new Date().toLocaleString('ko-KR');
     const activeItems = inventory.filter(i => i.count > 0);
@@ -208,7 +207,6 @@ export default function App() {
     return text;
   };
 
-  // 최종 저장 로직
   const handleFinalSave = () => {
     const activeItems = items.filter(i => i.count > 0);
     if (activeItems.length === 0) {
@@ -226,7 +224,8 @@ export default function App() {
     navigator.clipboard.writeText(textContent);
 
     const element = document.createElement("a");
-    const file = new Blob(["\uFEFF" + textContent], {type: 'text/plain;charset=utf-8'}); 
+    // 한글 깨짐 방지용 \uFEFF 추가 완료
+    const file = new Blob(["\uFEFF" + textContent], {type: 'text/plain;charset=utf-8'});
     element.href = URL.createObjectURL(file);
     element.download = `테라커피_재고조사_${new Date().toISOString().split('T')[0]}.txt`;
     document.body.appendChild(element);
@@ -240,15 +239,21 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-32 font-sans">
-      {/* 상단 헤더 */}
       <header className="sticky top-0 z-10 bg-white border-b border-slate-200 px-4 py-4 shadow-sm">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
             <Coffee className="w-6 h-6 text-amber-800" />
             테라커피 재고조사
           </h1>
-          {/* 우측 상단 버튼 영역 (품목 추가 버튼 신설) */}
           <div className="flex items-center gap-2">
+            {/* 🔴 초기화 버튼 UI */}
+            <button 
+              onClick={handleResetAll}
+              className="p-2 bg-red-50 hover:bg-red-100 active:bg-red-200 rounded-xl text-red-500 transition-colors shadow-sm"
+              title="모든 수량 0으로 초기화"
+            >
+              <RotateCcw className="w-5 h-5" />
+            </button>
             <button 
               onClick={() => setShowAddModal(true)}
               className="flex items-center gap-1 p-2 bg-amber-100 rounded-xl text-amber-700 hover:bg-amber-200 active:bg-amber-300 transition-colors font-semibold text-sm shadow-sm"
@@ -302,7 +307,6 @@ export default function App() {
         })}
       </main>
 
-      {/* 하단 저장 버튼 */}
       <footer className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-slate-200 flex justify-center z-20">
         <button
           onClick={handleFinalSave}
@@ -320,13 +324,12 @@ export default function App() {
           ) : (
             <>
               <Save className="w-6 h-6" />
-              재고 내역 저장
+              재고 내역 저장 및 공유
             </>
           )}
         </button>
       </footer>
 
-      {/* 🟢 신규 기능: 새 품목 추가 모달 */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
           <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6">
@@ -345,7 +348,7 @@ export default function App() {
                   onChange={(e) => setNewItemName(e.target.value)}
                   placeholder="예: 바닐라 마카롱"
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all"
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddItem()} // 엔터 치면 추가됨
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddItem()}
                 />
               </div>
               <div>
@@ -371,7 +374,6 @@ export default function App() {
         </div>
       )}
 
-      {/* 기록 보기 모달 (기존 코드와 동일) */}
       {showHistory && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm">
           <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[80vh] flex flex-col">
