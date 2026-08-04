@@ -2,11 +2,11 @@ import { useState, useMemo, useEffect } from 'react';
 import { 
   Plus, Minus, Search, Coffee, 
   Droplets, Inbox, Save, CheckCircle2, History, X, Copy,
-  CupSoda, Cake, IceCream, ShoppingBag, Utensils, RotateCcw
-  // GripVertical 은 지웠습니다!
+  CupSoda, Cake, IceCream, ShoppingBag, Utensils, RotateCcw,
+  Download // 🟢 불러오기 아이콘 추가
 } from 'lucide-react';
-// 🟢 드래그 앤 드롭 패키지 불러오기
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
+
 // --- 재고 데이터 구조 정의 ---
 interface InventoryItem {
   id: string;
@@ -22,7 +22,7 @@ interface SaveRecord {
 
 // --- 테라커피 카테고리 구성 ---
 const CATEGORIES = [
-  
+  { name: '원두', icon: Coffee, color: 'text-amber-900' },
   { name: '파우더', icon: Inbox, color: 'text-orange-500' },
   { name: '청/잼/당류', icon: Droplets, color: 'text-yellow-500' },
   { name: '티백', icon: CupSoda, color: 'text-green-600' },
@@ -30,17 +30,13 @@ const CATEGORIES = [
   { name: '토핑/부재료', icon: Utensils, color: 'text-pink-500' },
   { name: '베이커리', icon: Cake, color: 'text-amber-600' },
   { name: '소모품', icon: ShoppingBag, color: 'text-slate-500' },
-  { name: '원두', icon: Coffee, color: 'text-amber-900' },
 ];
 
 // --- 실제 재고 데이터 ---
 const INITIAL_DATA: InventoryItem[] = [
-  // --- 원두 ---
   { id: '1', name: '디카페인 원두', category: '원두', count: 0 },
   { id: '2', name: '싱글 원두', category: '원두', count: 0 },
   { id: '3', name: '블랜드 원두', category: '원두', count: 0 },
-
-  // --- 파우더 ---
   { id: '4', name: '청송사과', category: '파우더', count: 0 },
   { id: '5', name: '그린티', category: '파우더', count: 0 },
   { id: '6', name: '말차', category: '파우더', count: 0 },
@@ -65,8 +61,6 @@ const INITIAL_DATA: InventoryItem[] = [
   { id: '25', name: '홍차', category: '파우더', count: 0 },
   { id: '26', name: '복숭아 아이스티', category: '파우더', count: 0 },
   { id: '27', name: '커피믹스', category: '파우더', count: 0 },
-
-  // --- 청/잼/당류 ---
   { id: '28', name: '딸기잼', category: '청/잼/당류', count: 0 },
   { id: '29', name: '블루베리잼', category: '청/잼/당류', count: 0 },
   { id: '30', name: '한라봉잼', category: '청/잼/당류', count: 0 },
@@ -75,21 +69,15 @@ const INITIAL_DATA: InventoryItem[] = [
   { id: '33', name: '연유', category: '청/잼/당류', count: 0 },
   { id: '34', name: '시럽', category: '청/잼/당류', count: 0 },
   { id: '35', name: '설탕', category: '청/잼/당류', count: 0 },
-
-  // --- 티백 ---
   { id: '36', name: '얼그레이 티백', category: '티백', count: 0 },
   { id: '37', name: '썸머베리 티백', category: '티백', count: 0 },
   { id: '38', name: '캐모마일 티백', category: '티백', count: 0 },
   { id: '39', name: '페퍼민트 티백', category: '티백', count: 0 },
-
-  // --- 아이스크림 관련 ---
   { id: '40', name: '초코소프트', category: '아이스크림', count: 0 },
   { id: '41', name: '바닐라스카이', category: '아이스크림', count: 0 },
   { id: '42', name: '콘', category: '아이스크림', count: 0 },
   { id: '43', name: '콘지', category: '아이스크림', count: 0 },
   { id: '44', name: '아이스크림컵', category: '아이스크림', count: 0 },
-
-  // --- 토핑/부재료 ---
   { id: '45', name: '오레오 분태', category: '토핑/부재료', count: 0 },
   { id: '46', name: '쿠앤크', category: '토핑/부재료', count: 0 },
   { id: '47', name: '코코볼', category: '토핑/부재료', count: 0 },
@@ -99,8 +87,6 @@ const INITIAL_DATA: InventoryItem[] = [
   { id: '51', name: '가당딸기', category: '토핑/부재료', count: 0 },
   { id: '52', name: '초코쉘', category: '토핑/부재료', count: 0 },
   { id: '53', name: '오렌지 건칩', category: '토핑/부재료', count: 0 },
-
-  // --- 베이커리 ---
   { id: '54', name: '플레인 베이글', category: '베이커리', count: 0 },
   { id: '55', name: '어니언 베이글', category: '베이커리', count: 0 },
   { id: '56', name: '크로크무슈', category: '베이커리', count: 0 },
@@ -116,8 +102,6 @@ const INITIAL_DATA: InventoryItem[] = [
   { id: '66', name: '미니초코바이트', category: '베이커리', count: 0 },
   { id: '67', name: '베이글칩', category: '베이커리', count: 0 },
   { id: '68', name: '체다치즈 베이글칩', category: '베이커리', count: 0 },
-
-  // --- 소모품 ---
   { id: '69', name: '큰빵봉지', category: '소모품', count: 0 },
 ];
 
@@ -153,7 +137,6 @@ export default function App() {
     ));
   };
 
-  // 🟢 수정: 0이 남아있지 않고 바로 깔끔하게 숫자가 써지도록 개선
   const handleInputChange = (id: string, value: string) => {
     if (value === '') {
       setItems(prev => prev.map(item => item.id === id ? { ...item, count: 0 } : item));
@@ -193,23 +176,18 @@ export default function App() {
     }
   };
 
-  // 🟢 신규: 드래그 앤 드롭 순서 저장 로직
   const handleDragEnd = (result: DropResult) => {
     const { source, destination } = result;
     if (!destination) return;
-    
-    // 다른 카테고리로의 이동은 막음 (같은 카테고리 안에서만 순서 변경)
     if (source.droppableId !== destination.droppableId) return;
 
     const catName = source.droppableId;
     const catItems = items.filter(i => i.category === catName);
     const otherItems = items.filter(i => i.category !== catName);
 
-    // 순서 변경
     const [draggedItem] = catItems.splice(source.index, 1);
     catItems.splice(destination.index, 0, draggedItem);
 
-    // 새로운 순서로 상태 업데이트
     setItems([...otherItems, ...catItems]);
   };
 
@@ -269,24 +247,14 @@ export default function App() {
             테라커피 재고조사
           </h1>
           <div className="flex items-center gap-2">
-            <button 
-              onClick={handleResetAll}
-              className="p-2 bg-red-50 hover:bg-red-100 active:bg-red-200 rounded-xl text-red-500 transition-colors shadow-sm"
-              title="모든 수량 0으로 초기화"
-            >
+            <button onClick={handleResetAll} className="p-2 bg-red-50 hover:bg-red-100 active:bg-red-200 rounded-xl text-red-500 transition-colors shadow-sm" title="모든 수량 0으로 초기화">
               <RotateCcw className="w-5 h-5" />
             </button>
-            <button 
-              onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-1 p-2 bg-amber-100 rounded-xl text-amber-700 hover:bg-amber-200 active:bg-amber-300 transition-colors font-semibold text-sm shadow-sm"
-            >
+            <button onClick={() => setShowAddModal(true)} className="flex items-center gap-1 p-2 bg-amber-100 rounded-xl text-amber-700 hover:bg-amber-200 active:bg-amber-300 transition-colors font-semibold text-sm shadow-sm">
               <Plus className="w-5 h-5" />
               <span className="hidden sm:inline pr-1">품목 추가</span>
             </button>
-            <button 
-              onClick={() => setShowHistory(true)}
-              className="p-2 bg-slate-100 rounded-xl text-slate-600 hover:bg-slate-200 active:bg-slate-300 transition-colors shadow-sm"
-            >
+            <button onClick={() => setShowHistory(true)} className="p-2 bg-slate-100 rounded-xl text-slate-600 hover:bg-slate-200 active:bg-slate-300 transition-colors shadow-sm">
               <History className="w-5 h-5" />
             </button>
           </div>
@@ -303,7 +271,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* 🟢 신규: 드래그 앤 드롭 영역 감싸기 */}
       <DragDropContext onDragEnd={handleDragEnd}>
         <main className="max-w-2xl mx-auto p-4 space-y-8">
           {CATEGORIES.map(cat => {
@@ -316,29 +283,14 @@ export default function App() {
                   <cat.icon className="w-4 h-4" />
                   {cat.name}
                 </h2>
-                
-                {/* 검색 중일 때는 드래그 비활성화 (순서 꼬임 방지) */}
                 <Droppable droppableId={cat.name} isDropDisabled={searchTerm !== ''}>
                   {(provided) => (
-                    <div 
-                      {...provided.droppableProps} 
-                      ref={provided.innerRef}
-                      className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 shadow-sm"
-                    >
+                    <div {...provided.droppableProps} ref={provided.innerRef} className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 shadow-sm">
                       {catItems.map((item, index) => (
                         <Draggable key={item.id} draggableId={item.id} index={index}>
                           {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              className={snapshot.isDragging ? 'bg-amber-50 shadow-lg rounded-xl z-50' : ''}
-                            >
-                              <InventoryCard 
-                                item={item} 
-                                onUpdate={updateCount} 
-                                onInput={handleInputChange}
-                                dragHandleProps={provided.dragHandleProps} // 손잡이 연결
-                              />
+                            <div ref={provided.innerRef} {...provided.draggableProps} className={snapshot.isDragging ? 'bg-amber-50 shadow-lg rounded-xl z-50' : ''}>
+                              <InventoryCard item={item} onUpdate={updateCount} onInput={handleInputChange} dragHandleProps={provided.dragHandleProps} />
                             </div>
                           )}
                         </Draggable>
@@ -353,10 +305,9 @@ export default function App() {
         </main>
       </DragDropContext>
 
-      {/* -- 하단 버튼 및 모달들은 기존과 동일합니다 -- */}
       <footer className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-slate-200 flex justify-center z-20">
         <button onClick={handleFinalSave} disabled={showSaved} className={`w-full max-w-lg flex items-center justify-center gap-2 py-5 rounded-2xl font-bold text-white shadow-xl transition-all active:scale-95 ${showSaved ? 'bg-green-500' : 'bg-slate-900 hover:bg-slate-800'}`}>
-          {showSaved ? <><CheckCircle2 className="w-6 h-6" />저장 완료!</> : <><Save className="w-6 h-6" />재고 내역 저장</>}
+          {showSaved ? <><CheckCircle2 className="w-6 h-6" />저장 완료!</> : <><Save className="w-6 h-6" />재고 내역 저장 및 공유</>}
         </button>
       </footer>
 
@@ -384,6 +335,7 @@ export default function App() {
         </div>
       )}
 
+      {/* 🟢 신규: 기록 불러오기 버튼이 추가된 모달 영역 */}
       {showHistory && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm">
           <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[80vh] flex flex-col">
@@ -394,9 +346,25 @@ export default function App() {
             <div className="overflow-y-auto p-4 space-y-4">
               {history.length === 0 ? <div className="text-center py-10 text-slate-400">아직 저장된 기록이 없습니다.</div> : history.map((record, idx) => (
                 <div key={idx} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <div className="flex justify-between items-start mb-2">
+                  <div className="flex justify-between items-center mb-3">
                     <div className="text-xs font-bold text-slate-400">{record.timestamp}</div>
-                    <button onClick={() => { navigator.clipboard.writeText(generateReportText(record.items)); alert("해당 기록이 복사되었습니다."); }} className="p-1 text-slate-400 hover:text-slate-600"><Copy className="w-4 h-4" /></button>
+                    <div className="flex items-center gap-2">
+                      {/* 🟢 새로 추가된 불러오기 버튼 */}
+                      <button 
+                        onClick={() => {
+                          if(window.confirm("⚠️ 이 기록의 재고 수량과 순서로 현재 화면을 덮어쓰시겠습니까?")) {
+                            setItems([...record.items]);
+                            setShowHistory(false);
+                            alert("기록을 성공적으로 불러왔습니다.");
+                          }
+                        }}
+                        className="flex items-center gap-1 px-2 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 active:bg-blue-200 rounded-lg text-xs font-bold transition-colors"
+                      >
+                        <Download className="w-4 h-4" />
+                        불러오기
+                      </button>
+                      <button onClick={() => { navigator.clipboard.writeText(generateReportText(record.items)); alert("해당 기록이 복사되었습니다."); }} className="p-1.5 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-lg"><Copy className="w-4 h-4" /></button>
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                     {record.items.filter(i => i.count > 0).map(i => (
@@ -416,12 +384,11 @@ export default function App() {
   );
 }
 
-// 🟢 카드 컴포넌트: 드래그 손잡이와 0 입력 버그 수정 반영
 function InventoryCard({ 
   item, 
   onUpdate, 
   onInput,
-  dragHandleProps // 드래그 기능 전달받음
+  dragHandleProps
 }: { 
   item: InventoryItem, 
   onUpdate: (id: string, d: number) => void,
@@ -430,8 +397,6 @@ function InventoryCard({
 }) {
   return (
     <div className="flex items-center justify-between p-4 bg-white transition-colors">
-      
-      {/* 🟢 점 6개 아이콘은 지우고, 이 이름 영역 전체를 손잡이로 만들었습니다! */}
       <div 
         {...dragHandleProps} 
         className="flex items-center gap-2 flex-1 min-w-0 py-2 touch-none cursor-grab active:cursor-grabbing"
