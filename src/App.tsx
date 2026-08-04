@@ -107,9 +107,22 @@ const INITIAL_DATA: InventoryItem[] = [
 ];
 
 export default function App() {
-  const [items, setItems] = useState<InventoryItem[]>(() => {
+const [items, setItems] = useState<InventoryItem[]>(() => {
     const saved = localStorage.getItem('inventory_items');
-    return saved ? JSON.parse(saved) : INITIAL_DATA;
+    if (saved) {
+      const parsedItems = JSON.parse(saved);
+      // 🟢 마법의 코드: 기존 저장된 데이터를 훑어보면서, 최신 코드(INITIAL_DATA)와 카테고리를 맞춰줍니다!
+      const mergedItems = parsedItems.map((savedItem: InventoryItem) => {
+        const originalItem = INITIAL_DATA.find(init => init.id === savedItem.id);
+        if (originalItem) {
+          // 수량(count)은 폰에 저장된 걸 유지하고, 카테고리와 이름은 무조건 최신 코드를 따름
+          return { ...savedItem, category: originalItem.category, name: originalItem.name };
+        }
+        return savedItem; // 앱 안에서 '품목 추가' 버튼으로 만든 항목들은 그대로 유지
+      });
+      return mergedItems;
+    }
+    return INITIAL_DATA;
   });
 
   const [history, setHistory] = useState<SaveRecord[]>(() => {
