@@ -22,14 +22,15 @@ interface SaveRecord {
 
 // --- 테라커피 카테고리 구성 ---
 const CATEGORIES = [
-  { name: '원두', icon: Coffee, color: 'text-amber-900' },
+
   { name: '파우더', icon: Inbox, color: 'text-orange-500' },
   { name: '청/잼/당류', icon: Droplets, color: 'text-yellow-500' },
   { name: '티백', icon: CupSoda, color: 'text-green-600' },
   { name: '아이스크림', icon: IceCream, color: 'text-blue-400' },
   { name: '토핑/부재료', icon: Utensils, color: 'text-pink-500' },
   { name: '베이커리', icon: Cake, color: 'text-amber-600' },
-  { name: '소모품', icon: ShoppingBag, color: 'text-slate-500' },
+  { name: '소모품', icon: ShoppingBag, color: 'text-slate-500' }, 
+ { name: '원두', icon: Coffee, color: 'text-amber-900' },
 ];
 
 // --- 실제 재고 데이터 ---
