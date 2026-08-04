@@ -2,8 +2,8 @@ import { useState, useMemo, useEffect } from 'react';
 import { 
   Plus, Minus, Search, Coffee, 
   Droplets, Inbox, Save, CheckCircle2, History, X, Copy,
-  CupSoda, Cake, IceCream, ShoppingBag, Utensils, RotateCcw,
-  GripVertical // 🟢 드래그 손잡이 아이콘 추가
+  CupSoda, Cake, IceCream, ShoppingBag, Utensils, RotateCcw
+  // GripVertical 은 지웠습니다!
 } from 'lucide-react';
 // 🟢 드래그 앤 드롭 패키지 불러오기
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
@@ -430,35 +430,35 @@ function InventoryCard({
 }) {
   return (
     <div className="flex items-center justify-between p-4 bg-white transition-colors">
-      <div className="flex items-center gap-2 flex-1 min-w-0">
-        {/* 점 6개 드래그 손잡이 아이콘 */}
-        <div {...dragHandleProps} className="p-2 -ml-2 text-slate-300 hover:text-slate-500 touch-none cursor-grab active:cursor-grabbing">
-          <GripVertical className="w-5 h-5" />
-        </div>
+      
+      {/* 🟢 점 6개 아이콘은 지우고, 이 이름 영역 전체를 손잡이로 만들었습니다! */}
+      <div 
+        {...dragHandleProps} 
+        className="flex items-center gap-2 flex-1 min-w-0 py-2 touch-none cursor-grab active:cursor-grabbing"
+      >
         <span className="font-medium text-slate-700 truncate">{item.name}</span>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 pl-2">
         <button
           onClick={() => onUpdate(item.id, -0.5)}
-          className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 active:bg-slate-200"
+          className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 active:bg-slate-200 shrink-0"
         >
           <Minus className="w-4 h-4" />
         </button>
 
-        {/* 🟢 입력 버그 해결: 값이 0일 땐 빈칸(placeholder)으로 보이게 설정 */}
         <input
           type="number"
           step="0.5"
           placeholder="0"
           value={item.count === 0 ? '' : item.count}
           onChange={(e) => onInput(item.id, e.target.value)}
-          className="w-20 h-10 text-center font-bold text-lg bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none [appearance:textfield]"
+          className="w-16 sm:w-20 h-10 text-center font-bold text-lg bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none [appearance:textfield] shrink-0"
         />
 
         <button
           onClick={() => onUpdate(item.id, 0.5)}
-          className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-900 text-white active:scale-95 transition-transform"
+          className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-900 text-white active:scale-95 transition-transform shrink-0"
         >
           <Plus className="w-4 h-4" />
         </button>
