@@ -1,11 +1,12 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { 
   Plus, Minus, Search, Coffee, 
   Droplets, Inbox, Save, CheckCircle2, History, X, Copy,
   CupSoda, Cake, IceCream, ShoppingBag, Utensils, RotateCcw,
-  Download // 🟢 불러오기 아이콘 추가
+  Download, Cloud, CloudOff, RefreshCw
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
+import { supabase, isSupabaseConfigured } from './supabase';
 
 // --- 재고 데이터 구조 정의 ---
 interface InventoryItem {
@@ -13,16 +14,17 @@ interface InventoryItem {
   name: string;
   category: string;
   count: number;
+  display_order?: number;
 }
 
 interface SaveRecord {
+  id?: string;
   timestamp: string;
   items: InventoryItem[];
 }
 
 // --- 테라커피 카테고리 구성 ---
 const CATEGORIES = [
-
   { name: '파우더', icon: Inbox, color: 'text-orange-500' },
   { name: '청/잼/당류', icon: Droplets, color: 'text-yellow-500' },
   { name: '티백', icon: CupSoda, color: 'text-green-600' },
@@ -30,10 +32,10 @@ const CATEGORIES = [
   { name: '토핑/부재료', icon: Utensils, color: 'text-pink-500' },
   { name: '베이커리', icon: Cake, color: 'text-amber-600' },
   { name: '소모품', icon: ShoppingBag, color: 'text-slate-500' }, 
- { name: '원두', icon: Coffee, color: 'text-amber-900' },
+  { name: '원두', icon: Coffee, color: 'text-amber-900' },
 ];
 
-// --- 실제 재고 데이터 ---
+// --- 실제 재고 초기 데이터 ---
 const INITIAL_DATA: InventoryItem[] = [
   { id: '1', name: '디카페인 원두', category: '원두', count: 0 },
   { id: '2', name: '싱글 원두', category: '원두', count: 0 },
@@ -107,28 +109,10 @@ const INITIAL_DATA: InventoryItem[] = [
 ];
 
 export default function App() {
-const [items, setItems] = useState<InventoryItem[]>(() => {
-    const saved = localStorage.getItem('inventory_items');
-    if (saved) {
-      const parsedItems = JSON.parse(saved);
-      // 🟢 마법의 코드: 기존 저장된 데이터를 훑어보면서, 최신 코드(INITIAL_DATA)와 카테고리를 맞춰줍니다!
-      const mergedItems = parsedItems.map((savedItem: InventoryItem) => {
-        const originalItem = INITIAL_DATA.find(init => init.id === savedItem.id);
-        if (originalItem) {
-          // 수량(count)은 폰에 저장된 걸 유지하고, 카테고리와 이름은 무조건 최신 코드를 따름
-          return { ...savedItem, category: originalItem.category, name: originalItem.name };
-        }
-        return savedItem; // 앱 안에서 '품목 추가' 버튼으로 만든 항목들은 그대로 유지
-      });
-      return mergedItems;
-    }
-    return INITIAL_DATA;
-  });
-
-  const [history, setHistory] = useState<SaveRecord[]>(() => {
-    const saved = localStorage.getItem('inventory_history');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [history, setHistory] = useState<SaveRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [showSaved, setShowSaved] = useState(false);
@@ -137,32 +121,149 @@ const [items, setItems] = useState<InventoryItem[]>(() => {
   const [newItemName, setNewItemName] = useState('');
   const [newItemCategory, setNewItemCategory] = useState(CATEGORIES[0].name);
 
+  // --- 데이터 불러오기 함수 ---
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+
+    // 로컬 스토리지에 저장된 수량 및 순서 가져오기
+    const localSaved = localStorage.getItem('inventory_items');
+    let localItemsMap: Record<string, { count: number; display_order?: number }> = {};
+    if (localSaved) {
+      try {
+        const parsed: InventoryItem[] = JSON.parse(localSaved);
+        parsed.forEach((item, index) => {
+          localItemsMap[item.id] = {
+            count: item.count || 0,
+            display_order: item.display_order ?? index
+          };
+        });
+      } catch (e) {
+        console.error('로컬스토리지 파싱 에러', e);
+      }
+    }
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        // 1. Supabase에서 마스터 품목(이름, 카테고리 등) 불러오기
+        const { data: dbItems, error: itemsError } = await supabase
+          .from('inventory_items')
+          .select('id, name, category, display_order')
+          .order('display_order', { ascending: true });
+
+        if (itemsError) throw itemsError;
+
+        let baseItems: InventoryItem[] = [];
+
+        if (dbItems && dbItems.length > 0) {
+          baseItems = dbItems.map((dbItem, index) => ({
+            id: String(dbItem.id),
+            name: dbItem.name,
+            category: dbItem.category,
+            count: localItemsMap[String(dbItem.id)]?.count ?? 0,
+            display_order: localItemsMap[String(dbItem.id)]?.display_order ?? dbItem.display_order ?? index
+          }));
+        } else {
+          // DB가 비어있는 경우 초기 데이터 삽입
+          const formattedInitial = INITIAL_DATA.map((item, index) => ({
+            id: item.id,
+            name: item.name,
+            category: item.category,
+            display_order: index
+          }));
+          const { data: seeded, error: seedError } = await supabase
+            .from('inventory_items')
+            .insert(formattedInitial)
+            .select();
+
+          if (!seedError && seeded) {
+            baseItems = seeded.map((item, index) => ({
+              ...item,
+              id: String(item.id),
+              count: localItemsMap[String(item.id)]?.count ?? 0,
+              display_order: localItemsMap[String(item.id)]?.display_order ?? index
+            }));
+          } else {
+            baseItems = INITIAL_DATA;
+          }
+        }
+
+        // 로컬 순서에 따라 정렬
+        baseItems.sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+        setItems(baseItems);
+
+        // 2. Supabase에서 공유 이력 불러오기
+        const { data: dbHistory, error: historyError } = await supabase
+          .from('inventory_history')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (!historyError && dbHistory) {
+          setHistory(dbHistory.map(h => ({ id: h.id, timestamp: h.timestamp, items: h.items })));
+        }
+
+      } catch (err) {
+        console.error('Supabase 로딩 오류, 로컬스토리지 백업 데이터 사용:', err);
+        fallbackToLocalStorage();
+      }
+    } else {
+      fallbackToLocalStorage();
+    }
+
+    setIsLoading(false);
+  }, []);
+
+  const fallbackToLocalStorage = () => {
+    const saved = localStorage.getItem('inventory_items');
+    if (saved) {
+      const parsedItems = JSON.parse(saved);
+      const mergedItems = parsedItems.map((savedItem: InventoryItem) => {
+        const originalItem = INITIAL_DATA.find(init => init.id === savedItem.id);
+        if (originalItem) {
+          return { ...savedItem, category: originalItem.category, name: originalItem.name };
+        }
+        return savedItem;
+      });
+      setItems(mergedItems);
+    } else {
+      setItems(INITIAL_DATA);
+    }
+
+    const savedHistory = localStorage.getItem('inventory_history');
+    setHistory(savedHistory ? JSON.parse(savedHistory) : []);
+  };
+
   useEffect(() => {
-    localStorage.setItem('inventory_items', JSON.stringify(items));
+    loadData();
+  }, [loadData]);
+
+  // 로컬스토리지 백업 저장 (수량 및 개별 순서)
+  useEffect(() => {
+    if (items.length > 0) {
+      localStorage.setItem('inventory_items', JSON.stringify(items));
+    }
   }, [items]);
 
   useEffect(() => {
     localStorage.setItem('inventory_history', JSON.stringify(history));
   }, [history]);
 
+  // --- 수량 업데이트 (내 브라우저 로컬 저장소에만 업데이트) ---
   const updateCount = (id: string, delta: number) => {
-    setItems(prev => prev.map(item => 
-      item.id === id ? { ...item, count: Math.max(0, item.count + delta) } : item
-    ));
+    const updatedCount = Math.max(0, (items.find(i => i.id === id)?.count || 0) + delta);
+    setItems(prev => prev.map(item => item.id === id ? { ...item, count: updatedCount } : item));
   };
 
+  // --- 수량 직접 입력 (내 브라우저 로컬 저장소에만 업데이트) ---
   const handleInputChange = (id: string, value: string) => {
-    if (value === '') {
-      setItems(prev => prev.map(item => item.id === id ? { ...item, count: 0 } : item));
-      return;
-    }
-    const num = parseFloat(value);
-    if (!isNaN(num)) {
-      setItems(prev => prev.map(item => item.id === id ? { ...item, count: Math.max(0, num) } : item));
-    }
+    const num = value === '' ? 0 : parseFloat(value);
+    if (isNaN(num)) return;
+    const finalCount = Math.max(0, num);
+    setItems(prev => prev.map(item => item.id === id ? { ...item, count: finalCount } : item));
   };
 
-  const handleAddItem = () => {
+  // --- 품목 추가 (전체 클라우드 Supabase DB에 공유 저장) ---
+  const handleAddItem = async () => {
     if (!newItemName.trim()) {
       alert("품목 이름을 입력해주세요.");
       return;
@@ -171,18 +272,34 @@ const [items, setItems] = useState<InventoryItem[]>(() => {
       alert("이미 존재하는 품목입니다.");
       return;
     }
+
+    const newId = Date.now().toString();
     const newItem: InventoryItem = {
-      id: Date.now().toString(),
+      id: newId,
       name: newItemName.trim(),
       category: newItemCategory,
-      count: 0
+      count: 0,
+      display_order: items.length
     };
+
     setItems(prev => [...prev, newItem]);
     setNewItemName('');
     setNewItemCategory(CATEGORIES[0].name);
     setShowAddModal(false);
+
+    if (isSupabaseConfigured && supabase) {
+      setSyncing(true);
+      await supabase.from('inventory_items').insert([{
+        id: newId,
+        name: newItemName.trim(),
+        category: newItemCategory,
+        display_order: items.length
+      }]);
+      setSyncing(false);
+    }
   };
 
+  // --- 전체 초기화 (내 수량만 0으로) ---
   const handleResetAll = () => {
     const isConfirmed = window.confirm("⚠️ 정말 모든 재고 수량을 '0'으로 초기화하시겠습니까?\n(등록된 품목은 삭제되지 않습니다.)");
     if (isConfirmed) {
@@ -190,6 +307,7 @@ const [items, setItems] = useState<InventoryItem[]>(() => {
     }
   };
 
+  // --- 드래그 앤 드롭 순서 변경 (내 기기에만 순서 유지) ---
   const handleDragEnd = (result: DropResult) => {
     const { source, destination } = result;
     if (!destination) return;
@@ -202,7 +320,12 @@ const [items, setItems] = useState<InventoryItem[]>(() => {
     const [draggedItem] = catItems.splice(source.index, 1);
     catItems.splice(destination.index, 0, draggedItem);
 
-    setItems([...otherItems, ...catItems]);
+    const updatedItems = [...otherItems, ...catItems].map((item, index) => ({
+      ...item,
+      display_order: index
+    }));
+
+    setItems(updatedItems);
   };
 
   const filteredItems = useMemo(() => {
@@ -223,18 +346,30 @@ const [items, setItems] = useState<InventoryItem[]>(() => {
     return text;
   };
 
-  const handleFinalSave = () => {
+  // --- 재고 저장 및 기록 남기기 ---
+  const handleFinalSave = async () => {
     const activeItems = items.filter(i => i.count > 0);
     if (activeItems.length === 0) {
       alert("숫자가 입력된 재고가 없습니다!");
       return;
     }
 
+    const timestampStr = new Date().toLocaleString('ko-KR');
     const newRecord: SaveRecord = {
-      timestamp: new Date().toLocaleString('ko-KR'),
+      timestamp: timestampStr,
       items: [...items]
     };
+
     setHistory(prev => [newRecord, ...prev].slice(0, 10));
+
+    if (isSupabaseConfigured && supabase) {
+      setSyncing(true);
+      await supabase.from('inventory_history').insert([{
+        timestamp: timestampStr,
+        items: items
+      }]);
+      setSyncing(false);
+    }
 
     const textContent = generateReportText(items);
     navigator.clipboard.writeText(textContent);
@@ -255,6 +390,24 @@ const [items, setItems] = useState<InventoryItem[]>(() => {
   return (
     <div className="min-h-screen bg-slate-50 pb-32 font-sans">
       <header className="sticky top-0 z-10 bg-white border-b border-slate-200 px-4 py-4 shadow-sm">
+        {/* 상단 상태 바 */}
+        <div className="flex justify-between items-center mb-2">
+          <div className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
+            {isSupabaseConfigured ? (
+              <>
+                <Cloud className="w-3.5 h-3.5 text-green-500" />
+                <span>클라우드 동기화 활성</span>
+                {syncing && <RefreshCw className="w-3 h-3 text-amber-500 animate-spin ml-1" />}
+              </>
+            ) : (
+              <>
+                <CloudOff className="w-3.5 h-3.5 text-amber-500" />
+                <span>로컬스토리지 모드 (Supabase API 키 필요)</span>
+              </>
+            )}
+          </div>
+        </div>
+
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
             <Coffee className="w-6 h-6 text-amber-800" />
@@ -285,39 +438,46 @@ const [items, setItems] = useState<InventoryItem[]>(() => {
         </div>
       </header>
 
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <main className="max-w-2xl mx-auto p-4 space-y-8">
-          {CATEGORIES.map(cat => {
-            const catItems = filteredItems.filter(item => item.category === cat.name);
-            if (catItems.length === 0) return null;
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-3">
+          <RefreshCw className="w-8 h-8 animate-spin text-amber-600" />
+          <p className="text-sm font-medium">재고 데이터 로딩 중...</p>
+        </div>
+      ) : (
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <main className="max-w-2xl mx-auto p-4 space-y-8">
+            {CATEGORIES.map(cat => {
+              const catItems = filteredItems.filter(item => item.category === cat.name);
+              if (catItems.length === 0) return null;
 
-            return (
-              <section key={cat.name}>
-                <h2 className={`text-sm font-semibold mb-3 flex items-center gap-2 ${cat.color}`}>
-                  <cat.icon className="w-4 h-4" />
-                  {cat.name}
-                </h2>
-                <Droppable droppableId={cat.name} isDropDisabled={searchTerm !== ''}>
-                  {(provided) => (
-                    <div {...provided.droppableProps} ref={provided.innerRef} className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 shadow-sm">
-                      {catItems.map((item, index) => (
-                        <Draggable key={item.id} draggableId={item.id} index={index}>
-                          {(provided, snapshot) => (
-                            <div ref={provided.innerRef} {...provided.draggableProps} className={snapshot.isDragging ? 'bg-amber-50 shadow-lg rounded-xl z-50' : ''}>
-                              <InventoryCard item={item} onUpdate={updateCount} onInput={handleInputChange} dragHandleProps={provided.dragHandleProps} />
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
-              </section>
-            );
-          })}
-        </main>
-      </DragDropContext>
+              return (
+                <section key={cat.name}>
+                  <h2 className={`text-sm font-semibold mb-3 flex items-center gap-2 ${cat.color}`}>
+                    <cat.icon className="w-4 h-4" />
+                    {cat.name}
+                  </h2>
+                  <Droppable droppableId={cat.name} isDropDisabled={searchTerm !== ''}>
+                    {(provided) => (
+                      <div {...provided.droppableProps} ref={provided.innerRef} className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 shadow-sm">
+                        {catItems.map((item, index) => (
+                          <Draggable key={item.id} draggableId={item.id} index={index}>
+                            {(provided, snapshot) => (
+                              <div ref={provided.innerRef} {...provided.draggableProps} className={snapshot.isDragging ? 'bg-amber-50 shadow-lg rounded-xl z-50' : ''}>
+                                <InventoryCard item={item} onUpdate={updateCount} onInput={handleInputChange} dragHandleProps={provided.dragHandleProps} />
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </section>
+              );
+            })}
+          </main>
+        </DragDropContext>
+      )}
 
       <footer className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-slate-200 flex justify-center z-20">
         <button onClick={handleFinalSave} disabled={showSaved} className={`w-full max-w-lg flex items-center justify-center gap-2 py-5 rounded-2xl font-bold text-white shadow-xl transition-all active:scale-95 ${showSaved ? 'bg-green-500' : 'bg-slate-900 hover:bg-slate-800'}`}>
@@ -349,7 +509,6 @@ const [items, setItems] = useState<InventoryItem[]>(() => {
         </div>
       )}
 
-      {/* 🟢 신규: 기록 불러오기 버튼이 추가된 모달 영역 */}
       {showHistory && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm">
           <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[80vh] flex flex-col">
@@ -359,11 +518,10 @@ const [items, setItems] = useState<InventoryItem[]>(() => {
             </div>
             <div className="overflow-y-auto p-4 space-y-4">
               {history.length === 0 ? <div className="text-center py-10 text-slate-400">아직 저장된 기록이 없습니다.</div> : history.map((record, idx) => (
-                <div key={idx} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                <div key={record.id || idx} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
                   <div className="flex justify-between items-center mb-3">
                     <div className="text-xs font-bold text-slate-400">{record.timestamp}</div>
                     <div className="flex items-center gap-2">
-                      {/* 🟢 새로 추가된 불러오기 버튼 */}
                       <button 
                         onClick={() => {
                           if(window.confirm("⚠️ 이 기록의 재고 수량과 순서로 현재 화면을 덮어쓰시겠습니까?")) {
