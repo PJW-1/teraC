@@ -3,7 +3,7 @@ import {
   Plus, Minus, Search, Coffee, 
   Droplets, Inbox, Save, CheckCircle2, History, X, Copy,
   CupSoda, Cake, IceCream, ShoppingBag, Utensils, RotateCcw,
-  Download, RefreshCw, GripVertical
+  Download, RefreshCw, GripVertical, Trash2, Edit2, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import { supabase, isSupabaseConfigured } from './supabase';
@@ -114,17 +114,26 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategoryTab, setSelectedCategoryTab] = useState<string>('전체');
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+
   const [showSaved, setShowSaved] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+
+  // 품목 추가 모달 상태
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItemName, setNewItemName] = useState('');
   const [newItemCategory, setNewItemCategory] = useState(CATEGORIES[0].name);
+
+  // 품목 수정 모달 상태 (1번 개선점)
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editCategory, setEditCategory] = useState('');
 
   // --- 데이터 불러오기 함수 ---
   const loadData = useCallback(async () => {
     setIsLoading(true);
 
-    // 로컬 스토리지에 저장된 수량 가져오기
     const localSaved = localStorage.getItem('inventory_items');
     let localCountsMap: Record<string, number> = {};
     if (localSaved) {
@@ -140,7 +149,6 @@ export default function App() {
 
     if (isSupabaseConfigured && supabase) {
       try {
-        // 1. Supabase에서 공유 마스터 품목(이름, 카테고리, 공유 정렬 순서) 불러오기
         const { data: dbItems, error: itemsError } = await supabase
           .from('inventory_items')
           .select('id, name, category, display_order')
@@ -159,7 +167,6 @@ export default function App() {
             display_order: dbItem.display_order ?? index
           }));
         } else {
-          // DB가 비어있는 경우 초기 데이터 삽입
           const formattedInitial = INITIAL_DATA.map((item, index) => ({
             id: item.id,
             name: item.name,
@@ -186,7 +193,6 @@ export default function App() {
         baseItems.sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
         setItems(baseItems);
 
-        // 2. Supabase에서 공유 이력 불러오기
         const { data: dbHistory, error: historyError } = await supabase
           .from('inventory_history')
           .select('*')
@@ -232,7 +238,55 @@ export default function App() {
     loadData();
   }, [loadData]);
 
-  // 로컬스토리지에는 개인 수량 및 순서 백업
+  // --- (4번 개선점) Supabase Realtime 구독 설정 ---
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+
+    const channel = supabase
+      .channel('public:inventory_items')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'inventory_items' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const newItem = payload.new;
+            setItems(prev => {
+              if (prev.some(i => i.id === String(newItem.id))) return prev;
+              return [...prev, {
+                id: String(newItem.id),
+                name: newItem.name,
+                category: newItem.category,
+                count: 0,
+                display_order: newItem.display_order ?? prev.length
+              }];
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            const updated = payload.new;
+            setItems(prev => prev.map(item => {
+              if (item.id === String(updated.id)) {
+                return {
+                  ...item,
+                  name: updated.name,
+                  category: updated.category,
+                  display_order: updated.display_order ?? item.display_order
+                };
+              }
+              return item;
+            }).sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)));
+          } else if (payload.eventType === 'DELETE') {
+            const deletedId = String(payload.old.id);
+            setItems(prev => prev.filter(i => i.id !== deletedId));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase?.removeChannel(channel);
+    };
+  }, []);
+
+  // 로컬스토리지 백업 저장
   useEffect(() => {
     if (items.length > 0) {
       localStorage.setItem('inventory_items', JSON.stringify(items));
@@ -243,13 +297,13 @@ export default function App() {
     localStorage.setItem('inventory_history', JSON.stringify(history));
   }, [history]);
 
-  // --- 수량 업데이트 (내 브라우저 로컬 저장소에만 업데이트) ---
+  // --- 수량 업데이트 ---
   const updateCount = (id: string, delta: number) => {
     const updatedCount = Math.max(0, (items.find(i => i.id === id)?.count || 0) + delta);
     setItems(prev => prev.map(item => item.id === id ? { ...item, count: updatedCount } : item));
   };
 
-  // --- 수량 직접 입력 (내 브라우저 로컬 저장소에만 업데이트) ---
+  // --- 수량 직접 입력 ---
   const handleInputChange = (id: string, value: string) => {
     const num = value === '' ? 0 : parseFloat(value);
     if (isNaN(num)) return;
@@ -257,7 +311,7 @@ export default function App() {
     setItems(prev => prev.map(item => item.id === id ? { ...item, count: finalCount } : item));
   };
 
-  // --- 품목 추가 (전체 클라우드 Supabase DB에 공유 저장) ---
+  // --- 품목 추가 ---
   const handleAddItem = async () => {
     if (!newItemName.trim()) {
       alert("품목 이름을 입력해주세요.");
@@ -292,7 +346,37 @@ export default function App() {
     }
   };
 
-  // --- 전체 초기화 (내 수량만 0으로) ---
+  // --- (1번 개선점) 품목 수정 저장 ---
+  const handleUpdateItem = async () => {
+    if (!editingItem || !editName.trim()) return;
+
+    const updatedName = editName.trim();
+    const updatedCat = editCategory;
+
+    setItems(prev => prev.map(i => i.id === editingItem.id ? { ...i, name: updatedName, category: updatedCat } : i));
+    setEditingItem(null);
+
+    if (isSupabaseConfigured && supabase) {
+      await supabase.from('inventory_items').update({
+        name: updatedName,
+        category: updatedCat
+      }).eq('id', editingItem.id);
+    }
+  };
+
+  // --- (1번 개선점) 품목 삭제 ---
+  const handleDeleteItem = async (id: string, name: string) => {
+    if (!window.confirm(`⚠️ '${name}' 품목을 삭제하시겠습니까?\n모든 사용자의 목록에서 삭제됩니다.`)) return;
+
+    setItems(prev => prev.filter(i => i.id !== id));
+    if (editingItem?.id === id) setEditingItem(null);
+
+    if (isSupabaseConfigured && supabase) {
+      await supabase.from('inventory_items').delete().eq('id', id);
+    }
+  };
+
+  // --- 전체 초기화 ---
   const handleResetAll = () => {
     const isConfirmed = window.confirm("⚠️ 정말 모든 재고 수량을 '0'으로 초기화하시겠습니까?\n(등록된 품목은 삭제되지 않습니다.)");
     if (isConfirmed) {
@@ -300,7 +384,7 @@ export default function App() {
     }
   };
 
-  // --- 드래그 앤 드롭 순서 변경 (Supabase DB에 마스터 순서 공유 저장) ---
+  // --- 드래그 앤 드롭 순서 변경 ---
   const handleDragEnd = async (result: DropResult) => {
     const { source, destination } = result;
     if (!destination) return;
@@ -335,12 +419,22 @@ export default function App() {
     }
   };
 
+  // 3번 개선점: 검색어 및 탭 필터링
   const filteredItems = useMemo(() => {
-    return items.filter(item => 
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.category.includes(searchTerm)
-    );
-  }, [items, searchTerm]);
+    return items.filter(item => {
+      const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            item.category.includes(searchTerm);
+      const matchesCategoryTab = selectedCategoryTab === '전체' || item.category === selectedCategoryTab;
+      return matchesSearch && matchesCategoryTab;
+    });
+  }, [items, searchTerm, selectedCategoryTab]);
+
+  const toggleCategoryCollapse = (catName: string) => {
+    setCollapsedCategories(prev => ({
+      ...prev,
+      [catName]: !prev[catName]
+    }));
+  };
 
   const generateReportText = (inventory: InventoryItem[]) => {
     const date = new Date().toLocaleString('ko-KR');
@@ -353,7 +447,6 @@ export default function App() {
     return text;
   };
 
-  // --- 재고 저장 및 기록 남기기 ---
   const handleFinalSave = async () => {
     const activeItems = items.filter(i => i.count > 0);
     if (activeItems.length === 0) {
@@ -394,34 +487,63 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-32 font-sans">
-      <header className="sticky top-0 z-10 bg-white border-b border-slate-200 px-4 py-4 shadow-sm">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-            <Coffee className="w-6 h-6 text-amber-800" />
-            테라커피 재고조사
-          </h1>
-          <div className="flex items-center gap-2">
-            <button onClick={handleResetAll} className="p-2 bg-red-50 hover:bg-red-100 active:bg-red-200 rounded-xl text-red-500 transition-colors shadow-sm" title="모든 수량 0으로 초기화">
-              <RotateCcw className="w-5 h-5" />
-            </button>
-            <button onClick={() => setShowAddModal(true)} className="flex items-center gap-1 p-2 bg-amber-100 rounded-xl text-amber-700 hover:bg-amber-200 active:bg-amber-300 transition-colors font-semibold text-sm shadow-sm">
-              <Plus className="w-5 h-5" />
-              <span className="hidden sm:inline pr-1">품목 추가</span>
-            </button>
-            <button onClick={() => setShowHistory(true)} className="p-2 bg-slate-100 rounded-xl text-slate-600 hover:bg-slate-200 active:bg-slate-300 transition-colors shadow-sm">
-              <History className="w-5 h-5" />
-            </button>
+      <header className="sticky top-0 z-10 bg-white border-b border-slate-200 shadow-sm">
+        <div className="px-4 pt-4 pb-3">
+          <div className="flex justify-between items-center mb-3">
+            <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <Coffee className="w-6 h-6 text-amber-800" />
+              테라커피 재고조사
+            </h1>
+            <div className="flex items-center gap-2">
+              <button onClick={handleResetAll} className="p-2 bg-red-50 hover:bg-red-100 active:bg-red-200 rounded-xl text-red-500 transition-colors shadow-sm" title="모든 수량 0으로 초기화">
+                <RotateCcw className="w-5 h-5" />
+              </button>
+              <button onClick={() => setShowAddModal(true)} className="flex items-center gap-1 p-2 bg-amber-100 rounded-xl text-amber-700 hover:bg-amber-200 active:bg-amber-300 transition-colors font-semibold text-sm shadow-sm">
+                <Plus className="w-5 h-5" />
+                <span className="hidden sm:inline pr-1">품목 추가</span>
+              </button>
+              <button onClick={() => setShowHistory(true)} className="p-2 bg-slate-100 rounded-xl text-slate-600 hover:bg-slate-200 active:bg-slate-300 transition-colors shadow-sm">
+                <History className="w-5 h-5" />
+              </button>
+            </div>
           </div>
-        </div>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="품목 또는 카테고리 검색..."
-            className="w-full pl-10 pr-4 py-3 bg-slate-100 border-none rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all text-base"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+          <div className="relative mb-3">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="품목 또는 카테고리 검색..."
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-100 border-none rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all text-base"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          {/* 3번 개선점: 카테고리 필터 탭 바 */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs font-semibold">
+            <button
+              onClick={() => setSelectedCategoryTab('전체')}
+              className={`px-3 py-1.5 rounded-full shrink-0 transition-all ${
+                selectedCategoryTab === '전체'
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              전체 보기
+            </button>
+            {CATEGORIES.map(cat => (
+              <button
+                key={cat.name}
+                onClick={() => setSelectedCategoryTab(cat.name)}
+                className={`px-3 py-1.5 rounded-full shrink-0 transition-all ${
+                  selectedCategoryTab === cat.name
+                    ? 'bg-amber-600 text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
@@ -432,41 +554,67 @@ export default function App() {
         </div>
       ) : (
         <DragDropContext onDragEnd={handleDragEnd}>
-          <main className="max-w-2xl mx-auto p-4 space-y-8">
+          <main className="max-w-2xl mx-auto p-4 space-y-6">
             {CATEGORIES.map(cat => {
+              if (selectedCategoryTab !== '전체' && selectedCategoryTab !== cat.name) return null;
+
               const catItems = filteredItems.filter(item => item.category === cat.name);
               if (catItems.length === 0) return null;
+              const isCollapsed = collapsedCategories[cat.name];
 
               return (
-                <section key={cat.name}>
-                  <h2 className={`text-sm font-semibold mb-3 flex items-center gap-2 ${cat.color}`}>
-                    <cat.icon className="w-4 h-4" />
-                    {cat.name}
-                  </h2>
-                  <Droppable droppableId={cat.name} isDropDisabled={searchTerm !== ''}>
-                    {(provided) => (
-                      <div {...provided.droppableProps} ref={provided.innerRef} className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 shadow-sm">
-                        {catItems.map((item, index) => (
-                          <Draggable key={item.id} draggableId={item.id} index={index}>
-                            {(provided, snapshot) => (
-                              <div 
-                                ref={provided.innerRef} 
-                                {...provided.draggableProps} 
-                                className={`transition-all ${
-                                  snapshot.isDragging 
-                                    ? 'bg-amber-50 shadow-xl rounded-xl z-50 ring-2 ring-amber-400 scale-[1.02]' 
-                                    : 'hover:bg-slate-50/80 active:bg-slate-100/80'
-                                }`}
-                              >
-                                <InventoryCard item={item} onUpdate={updateCount} onInput={handleInputChange} dragHandleProps={provided.dragHandleProps} />
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
+                <section key={cat.name} className="transition-all">
+                  {/* 3번 개선점: 카테고리 접기/펼치기 아코디언 헤더 */}
+                  <div 
+                    onClick={() => toggleCategoryCollapse(cat.name)}
+                    className="flex items-center justify-between cursor-pointer mb-2.5 px-1 group select-none"
+                  >
+                    <h2 className={`text-sm font-bold flex items-center gap-2 ${cat.color}`}>
+                      <cat.icon className="w-4 h-4" />
+                      {cat.name}
+                      <span className="text-xs text-slate-400 font-normal">({catItems.length})</span>
+                    </h2>
+                    <div className="text-slate-400 group-hover:text-slate-600 p-1">
+                      {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                    </div>
+                  </div>
+
+                  {!isCollapsed && (
+                    <Droppable droppableId={cat.name} isDropDisabled={searchTerm !== ''}>
+                      {(provided) => (
+                        <div {...provided.droppableProps} ref={provided.innerRef} className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 shadow-sm overflow-hidden">
+                          {catItems.map((item, index) => (
+                            <Draggable key={item.id} draggableId={item.id} index={index}>
+                              {(provided, snapshot) => (
+                                <div 
+                                  ref={provided.innerRef} 
+                                  {...provided.draggableProps} 
+                                  className={`transition-all ${
+                                    snapshot.isDragging 
+                                      ? 'bg-amber-50 shadow-xl rounded-xl z-50 ring-2 ring-amber-400 scale-[1.02]' 
+                                      : 'hover:bg-slate-50/80 active:bg-slate-100/80'
+                                  }`}
+                                >
+                                  <InventoryCard 
+                                    item={item} 
+                                    onUpdate={updateCount} 
+                                    onInput={handleInputChange} 
+                                    onEdit={() => {
+                                      setEditingItem(item);
+                                      setEditName(item.name);
+                                      setEditCategory(item.category);
+                                    }}
+                                    dragHandleProps={provided.dragHandleProps} 
+                                  />
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
+                  )}
                 </section>
               );
             })}
@@ -480,6 +628,7 @@ export default function App() {
         </button>
       </footer>
 
+      {/* 새 품목 추가 모달 */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
           <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6">
@@ -499,6 +648,54 @@ export default function App() {
                 </select>
               </div>
               <button onClick={handleAddItem} className="w-full py-4 mt-4 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white font-bold rounded-xl transition-all shadow-md">추가하기</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 1번 개선점: 품목 수정/삭제 모달 */}
+      {editingItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="font-bold text-lg">품목 정보 수정</h3>
+              <button onClick={() => setEditingItem(null)} className="p-2 bg-slate-100 rounded-full"><X className="w-5 h-5 text-slate-500" /></button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-600 mb-2">품목 이름</label>
+                <input 
+                  type="text" 
+                  value={editName} 
+                  onChange={(e) => setEditName(e.target.value)} 
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-600 mb-2">카테고리</label>
+                <select 
+                  value={editCategory} 
+                  onChange={(e) => setEditCategory(e.target.value)} 
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all appearance-none"
+                >
+                  {CATEGORIES.map(cat => <option key={cat.name} value={cat.name}>{cat.name}</option>)}
+                </select>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button 
+                  onClick={() => handleDeleteItem(editingItem.id, editingItem.name)} 
+                  className="flex-1 py-3.5 bg-red-50 hover:bg-red-100 active:scale-95 text-red-600 font-bold rounded-xl transition-all border border-red-100 flex items-center justify-center gap-1.5 text-sm"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  삭제
+                </button>
+                <button 
+                  onClick={handleUpdateItem} 
+                  className="flex-[2] py-3.5 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white font-bold rounded-xl transition-all shadow-md text-sm"
+                >
+                  수정 완료
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -555,11 +752,13 @@ function InventoryCard({
   item, 
   onUpdate, 
   onInput,
+  onEdit,
   dragHandleProps
 }: { 
   item: InventoryItem, 
   onUpdate: (id: string, d: number) => void,
   onInput: (id: string, v: string) => void,
+  onEdit: () => void,
   dragHandleProps?: any
 }) {
   return (
@@ -572,6 +771,17 @@ function InventoryCard({
         <span className="font-semibold text-slate-800 text-sm sm:text-base leading-snug break-keep">
           {item.name}
         </span>
+        <button 
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit();
+          }}
+          className="p-1 text-slate-300 hover:text-slate-600 active:text-slate-800 transition-colors ml-1"
+          title="품목 수정/삭제"
+        >
+          <Edit2 className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       <div className="flex items-center gap-1.5 shrink-0">
