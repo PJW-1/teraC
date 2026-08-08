@@ -3,7 +3,7 @@ import {
   Plus, Minus, Search, Coffee, 
   Droplets, Inbox, Save, CheckCircle2, History, X, Copy,
   CupSoda, Cake, IceCream, ShoppingBag, Utensils, RotateCcw,
-  Download, RefreshCw, GripVertical, Trash2, Edit2, ChevronDown, ChevronUp
+  Download, RefreshCw, GripVertical, Trash2, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import { supabase, isSupabaseConfigured } from './supabase';
@@ -125,10 +125,16 @@ export default function App() {
   const [newItemName, setNewItemName] = useState('');
   const [newItemCategory, setNewItemCategory] = useState(CATEGORIES[0].name);
 
-  // 품목 수정 모달 상태 (1번 개선점)
-  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editCategory, setEditCategory] = useState('');
+  // --- 품목 삭제 ---
+  const handleDeleteItem = async (id: string, name: string) => {
+    if (!window.confirm(`⚠️ '${name}' 품목을 삭제하시겠습니까?\n모든 사용자의 목록에서 삭제됩니다.`)) return;
+
+    setItems(prev => prev.filter(i => i.id !== id));
+
+    if (isSupabaseConfigured && supabase) {
+      await supabase.from('inventory_items').delete().eq('id', id);
+    }
+  };
 
   // --- 데이터 불러오기 함수 ---
   const loadData = useCallback(async () => {
@@ -346,35 +352,7 @@ export default function App() {
     }
   };
 
-  // --- (1번 개선점) 품목 수정 저장 ---
-  const handleUpdateItem = async () => {
-    if (!editingItem || !editName.trim()) return;
 
-    const updatedName = editName.trim();
-    const updatedCat = editCategory;
-
-    setItems(prev => prev.map(i => i.id === editingItem.id ? { ...i, name: updatedName, category: updatedCat } : i));
-    setEditingItem(null);
-
-    if (isSupabaseConfigured && supabase) {
-      await supabase.from('inventory_items').update({
-        name: updatedName,
-        category: updatedCat
-      }).eq('id', editingItem.id);
-    }
-  };
-
-  // --- (1번 개선점) 품목 삭제 ---
-  const handleDeleteItem = async (id: string, name: string) => {
-    if (!window.confirm(`⚠️ '${name}' 품목을 삭제하시겠습니까?\n모든 사용자의 목록에서 삭제됩니다.`)) return;
-
-    setItems(prev => prev.filter(i => i.id !== id));
-    if (editingItem?.id === id) setEditingItem(null);
-
-    if (isSupabaseConfigured && supabase) {
-      await supabase.from('inventory_items').delete().eq('id', id);
-    }
-  };
 
   // --- 전체 초기화 ---
   const handleResetAll = () => {
@@ -599,11 +577,7 @@ export default function App() {
                                     item={item} 
                                     onUpdate={updateCount} 
                                     onInput={handleInputChange} 
-                                    onEdit={() => {
-                                      setEditingItem(item);
-                                      setEditName(item.name);
-                                      setEditCategory(item.category);
-                                    }}
+                                    onDelete={() => handleDeleteItem(item.id, item.name)}
                                     dragHandleProps={provided.dragHandleProps} 
                                   />
                                 </div>
@@ -653,53 +627,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 1번 개선점: 품목 수정/삭제 모달 */}
-      {editingItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="font-bold text-lg">품목 정보 수정</h3>
-              <button onClick={() => setEditingItem(null)} className="p-2 bg-slate-100 rounded-full"><X className="w-5 h-5 text-slate-500" /></button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-600 mb-2">품목 이름</label>
-                <input 
-                  type="text" 
-                  value={editName} 
-                  onChange={(e) => setEditName(e.target.value)} 
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all" 
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-600 mb-2">카테고리</label>
-                <select 
-                  value={editCategory} 
-                  onChange={(e) => setEditCategory(e.target.value)} 
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all appearance-none"
-                >
-                  {CATEGORIES.map(cat => <option key={cat.name} value={cat.name}>{cat.name}</option>)}
-                </select>
-              </div>
-              <div className="flex gap-2 pt-2">
-                <button 
-                  onClick={() => handleDeleteItem(editingItem.id, editingItem.name)} 
-                  className="flex-1 py-3.5 bg-red-50 hover:bg-red-100 active:scale-95 text-red-600 font-bold rounded-xl transition-all border border-red-100 flex items-center justify-center gap-1.5 text-sm"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  삭제
-                </button>
-                <button 
-                  onClick={handleUpdateItem} 
-                  className="flex-[2] py-3.5 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white font-bold rounded-xl transition-all shadow-md text-sm"
-                >
-                  수정 완료
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {showHistory && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm">
@@ -752,13 +680,13 @@ function InventoryCard({
   item, 
   onUpdate, 
   onInput,
-  onEdit,
+  onDelete,
   dragHandleProps
 }: { 
   item: InventoryItem, 
   onUpdate: (id: string, d: number) => void,
   onInput: (id: string, v: string) => void,
-  onEdit: () => void,
+  onDelete: () => void,
   dragHandleProps?: any
 }) {
   return (
@@ -775,12 +703,12 @@ function InventoryCard({
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            onEdit();
+            onDelete();
           }}
-          className="p-1 text-slate-300 hover:text-slate-600 active:text-slate-800 transition-colors ml-1"
-          title="품목 수정/삭제"
+          className="p-1 text-slate-300 hover:text-red-500 active:text-red-600 transition-colors ml-1"
+          title="품목 삭제"
         >
-          <Edit2 className="w-3.5 h-3.5" />
+          <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
 
