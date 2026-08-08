@@ -3,7 +3,7 @@ import {
   Plus, Minus, Search, Coffee, 
   Droplets, Inbox, Save, CheckCircle2, History, X, Copy,
   CupSoda, Cake, IceCream, ShoppingBag, Utensils, RotateCcw,
-  Download, Cloud, CloudOff, RefreshCw
+  Download, RefreshCw, GripVertical
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import { supabase, isSupabaseConfigured } from './supabase';
@@ -112,7 +112,6 @@ export default function App() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [history, setHistory] = useState<SaveRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [showSaved, setShowSaved] = useState(false);
@@ -288,14 +287,12 @@ export default function App() {
     setShowAddModal(false);
 
     if (isSupabaseConfigured && supabase) {
-      setSyncing(true);
       await supabase.from('inventory_items').insert([{
         id: newId,
         name: newItemName.trim(),
         category: newItemCategory,
         display_order: items.length
       }]);
-      setSyncing(false);
     }
   };
 
@@ -363,12 +360,10 @@ export default function App() {
     setHistory(prev => [newRecord, ...prev].slice(0, 10));
 
     if (isSupabaseConfigured && supabase) {
-      setSyncing(true);
       await supabase.from('inventory_history').insert([{
         timestamp: timestampStr,
         items: items
       }]);
-      setSyncing(false);
     }
 
     const textContent = generateReportText(items);
@@ -561,8 +556,9 @@ function InventoryCard({
     <div className="flex items-center justify-between p-3.5 bg-transparent transition-colors">
       <div 
         {...dragHandleProps} 
-        className="flex items-center gap-2 flex-1 min-w-0 py-1.5 pr-3 select-none cursor-grab active:cursor-grabbing touch-none"
+        className="flex items-center gap-2.5 flex-1 min-w-0 py-1.5 pr-3 select-none cursor-grab active:cursor-grabbing touch-none group"
       >
+        <GripVertical className="w-4 h-4 text-slate-300 group-hover:text-amber-500 transition-colors shrink-0" />
         <span className="font-semibold text-slate-800 text-base truncate">{item.name}</span>
       </div>
 
