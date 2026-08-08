@@ -124,17 +124,14 @@ export default function App() {
   const loadData = useCallback(async () => {
     setIsLoading(true);
 
-    // 로컬 스토리지에 저장된 수량 및 순서 가져오기
+    // 로컬 스토리지에 저장된 수량 가져오기
     const localSaved = localStorage.getItem('inventory_items');
-    let localItemsMap: Record<string, { count: number; display_order?: number }> = {};
+    let localCountsMap: Record<string, number> = {};
     if (localSaved) {
       try {
         const parsed: InventoryItem[] = JSON.parse(localSaved);
-        parsed.forEach((item, index) => {
-          localItemsMap[item.id] = {
-            count: item.count || 0,
-            display_order: item.display_order ?? index
-          };
+        parsed.forEach(item => {
+          localCountsMap[item.id] = item.count || 0;
         });
       } catch (e) {
         console.error('로컬스토리지 파싱 에러', e);
@@ -143,7 +140,7 @@ export default function App() {
 
     if (isSupabaseConfigured && supabase) {
       try {
-        // 1. Supabase에서 마스터 품목(이름, 카테고리 등) 불러오기
+        // 1. Supabase에서 공유 마스터 품목(이름, 카테고리, 공유 정렬 순서) 불러오기
         const { data: dbItems, error: itemsError } = await supabase
           .from('inventory_items')
           .select('id, name, category, display_order')
@@ -158,8 +155,8 @@ export default function App() {
             id: String(dbItem.id),
             name: dbItem.name,
             category: dbItem.category,
-            count: localItemsMap[String(dbItem.id)]?.count ?? 0,
-            display_order: localItemsMap[String(dbItem.id)]?.display_order ?? dbItem.display_order ?? index
+            count: localCountsMap[String(dbItem.id)] ?? 0,
+            display_order: dbItem.display_order ?? index
           }));
         } else {
           // DB가 비어있는 경우 초기 데이터 삽입
@@ -178,15 +175,14 @@ export default function App() {
             baseItems = seeded.map((item, index) => ({
               ...item,
               id: String(item.id),
-              count: localItemsMap[String(item.id)]?.count ?? 0,
-              display_order: localItemsMap[String(item.id)]?.display_order ?? index
+              count: localCountsMap[String(item.id)] ?? 0,
+              display_order: item.display_order ?? index
             }));
           } else {
             baseItems = INITIAL_DATA;
           }
         }
 
-        // 로컬 순서에 따라 정렬
         baseItems.sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
         setItems(baseItems);
 
@@ -236,7 +232,7 @@ export default function App() {
     loadData();
   }, [loadData]);
 
-  // 로컬스토리지 백업 저장 (수량 및 개별 순서)
+  // 로컬스토리지에는 개인 수량 및 순서 백업
   useEffect(() => {
     if (items.length > 0) {
       localStorage.setItem('inventory_items', JSON.stringify(items));
@@ -304,8 +300,8 @@ export default function App() {
     }
   };
 
-  // --- 드래그 앤 드롭 순서 변경 (내 기기에만 순서 유지) ---
-  const handleDragEnd = (result: DropResult) => {
+  // --- 드래그 앤 드롭 순서 변경 (Supabase DB에 마스터 순서 공유 저장) ---
+  const handleDragEnd = async (result: DropResult) => {
     const { source, destination } = result;
     if (!destination) return;
     if (source.droppableId !== destination.droppableId) return;
@@ -323,6 +319,20 @@ export default function App() {
     }));
 
     setItems(updatedItems);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const upsertData = updatedItems.map((item, index) => ({
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          display_order: index
+        }));
+        await supabase.from('inventory_items').upsert(upsertData, { onConflict: 'id' });
+      } catch (err) {
+        console.error('순서 저장 실패:', err);
+      }
+    }
   };
 
   const filteredItems = useMemo(() => {
@@ -553,19 +563,21 @@ function InventoryCard({
   dragHandleProps?: any
 }) {
   return (
-    <div className="flex items-center justify-between p-3.5 bg-transparent transition-colors">
+    <div className="flex items-center justify-between p-3 bg-transparent transition-colors gap-2">
       <div 
         {...dragHandleProps} 
-        className="flex items-center gap-2.5 flex-1 min-w-0 py-1.5 pr-3 select-none cursor-grab active:cursor-grabbing touch-none group"
+        className="flex items-center gap-2 flex-1 min-w-0 py-1 select-none cursor-grab active:cursor-grabbing touch-none group"
       >
         <GripVertical className="w-4 h-4 text-slate-300 group-hover:text-amber-500 transition-colors shrink-0" />
-        <span className="font-semibold text-slate-800 text-base truncate">{item.name}</span>
+        <span className="font-semibold text-slate-800 text-sm sm:text-base leading-snug break-keep">
+          {item.name}
+        </span>
       </div>
 
-      <div className="flex items-center gap-2 pl-2 shrink-0">
+      <div className="flex items-center gap-1.5 shrink-0">
         <button
           onClick={() => onUpdate(item.id, -0.5)}
-          className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 active:bg-slate-200 active:scale-95 transition-all shrink-0"
+          className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 active:bg-slate-200 active:scale-95 transition-all shrink-0"
         >
           <Minus className="w-4 h-4" />
         </button>
@@ -576,12 +588,12 @@ function InventoryCard({
           placeholder="0"
           value={item.count === 0 ? '' : item.count}
           onChange={(e) => onInput(item.id, e.target.value)}
-          className="w-16 sm:w-20 h-10 text-center font-bold text-lg bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none [appearance:textfield] shrink-0"
+          className="w-14 sm:w-18 h-9 sm:h-10 text-center font-bold text-base sm:text-lg bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none [appearance:textfield] shrink-0 px-1"
         />
 
         <button
           onClick={() => onUpdate(item.id, 0.5)}
-          className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-900 text-white active:scale-95 transition-all shrink-0"
+          className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-slate-900 text-white active:scale-95 transition-all shrink-0"
         >
           <Plus className="w-4 h-4" />
         </button>
