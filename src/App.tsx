@@ -14,6 +14,7 @@ interface InventoryItem {
   name: string;
   category: string;
   count: number | null;
+  unit?: string;
   display_order?: number;
 }
 
@@ -37,95 +38,94 @@ const CATEGORIES = [
 
 // --- 실제 재고 초기 데이터 ---
 const INITIAL_DATA: InventoryItem[] = [
-  { id: '1', name: '디카페인 원두', category: '원두', count: null },
-  { id: '2', name: '싱글 원두', category: '원두', count: null },
-  { id: '3', name: '블랜드 원두', category: '원두', count: null },
-  { id: '4', name: '청송사과', category: '파우더', count: null },
-  { id: '5', name: '그린티', category: '파우더', count: null },
-  { id: '6', name: '말차', category: '파우더', count: null },
-  { id: '7', name: '미숫가루', category: '파우더', count: null },
-  { id: '8', name: '쌍화차', category: '파우더', count: null },
-  { id: '9', name: '민트초코', category: '파우더', count: null },
-  { id: '10', name: '고구마', category: '파우더', count: null },
-  { id: '11', name: '더블초코자바칩', category: '파우더', count: null },
-  { id: '12', name: '초코퍼지', category: '파우더', count: null },
-  { id: '13', name: '프루맥스', category: '파우더', count: null },
-  { id: '14', name: '레몬에이드', category: '파우더', count: null },
-  { id: '15', name: '시그니처', category: '파우더', count: null },
-  { id: '16', name: '바닐라', category: '파우더', count: null },
-  { id: '17', name: '헤이즐넛', category: '파우더', count: null },
-  { id: '18', name: '토피넛', category: '파우더', count: null },
-  { id: '19', name: '핑크에너지', category: '파우더', count: null },
-  { id: '20', name: '포도', category: '파우더', count: null },
-  { id: '21', name: '블루오로라', category: '파우더', count: null },
-  { id: '22', name: '체리에이드', category: '파우더', count: null },
-  { id: '23', name: '밀크', category: '파우더', count: null },
-  { id: '24', name: '밀크쉐이크', category: '파우더', count: null },
-  { id: '25', name: '홍차', category: '파우더', count: null },
-  { id: '26', name: '복숭아 아이스티', category: '파우더', count: null },
-  { id: '27', name: '커피믹스', category: '파우더', count: null },
-  { id: '28', name: '딸기잼', category: '청/잼/당류', count: null },
-  { id: '29', name: '블루베리잼', category: '청/잼/당류', count: null },
-  { id: '30', name: '한라봉잼', category: '청/잼/당류', count: null },
-  { id: '31', name: '레몬청', category: '청/잼/당류', count: null },
-  { id: '32', name: '생강청', category: '청/잼/당류', count: null },
-  { id: '33', name: '연유', category: '청/잼/당류', count: null },
-  { id: '34', name: '시럽', category: '청/잼/당류', count: null },
-  { id: '35', name: '설탕', category: '청/잼/당류', count: null },
-  { id: '36', name: '얼그레이 티백', category: '티백', count: null },
-  { id: '37', name: '썸머베리 티백', category: '티백', count: null },
-  { id: '38', name: '캐모마일 티백', category: '티백', count: null },
-  { id: '39', name: '페퍼민트 티백', category: '티백', count: null },
-  { id: '40', name: '초코소프트', category: '파우더', count: null },
-  { id: '41', name: '바닐라스카이', category: '파우더', count: null },
-  { id: '42', name: '콘', category: '아이스크림', count: null },
-  { id: '43', name: '콘지', category: '아이스크림', count: null },
-  { id: '44', name: '아이스크림컵', category: '아이스크림', count: null },
-  { id: '45', name: '오레오 분태', category: '토핑/부재료', count: null },
-  { id: '46', name: '쿠앤크', category: '토핑/부재료', count: null },
-  { id: '47', name: '코코볼', category: '토핑/부재료', count: null },
-  { id: '48', name: '콘푸로스트', category: '토핑/부재료', count: null },
-  { id: '49', name: '컴파운드 초코칩', category: '토핑/부재료', count: null },
-  { id: '50', name: '마카다미아', category: '토핑/부재료', count: null },
-  { id: '51', name: '가당딸기', category: '토핑/부재료', count: null },
-  { id: '52', name: '초코쉘', category: '토핑/부재료', count: null },
-  { id: '53', name: '오렌지 건칩', category: '토핑/부재료', count: null },
-  { id: '54', name: '플레인 베이글', category: '베이커리', count: null },
-  { id: '55', name: '어니언 베이글', category: '베이커리', count: null },
-  { id: '56', name: '크로크무슈', category: '베이커리', count: null },
-  { id: '57', name: '소금빵', category: '베이커리', count: null },
-  { id: '58', name: '티라미슈', category: '베이커리', count: null },
-  { id: '59', name: '뉴욕치즈타르트', category: '베이커리', count: null },
-  { id: '60', name: '초코 마카롱', category: '베이커리', count: null },
-  { id: '61', name: '딸기 마카롱', category: '베이커리', count: null },
-  { id: '62', name: '피자붕어빵', category: '베이커리', count: null },
-  { id: '63', name: '마카다미아 쿠키', category: '베이커리', count: null },
-  { id: '64', name: '텍사스 화이트칩 쿠키', category: '베이커리', count: null },
-  { id: '65', name: '스모어쿠키', category: '베이커리', count: null },
-  { id: '66', name: '미니초코바이트', category: '베이커리', count: null },
-  { id: '67', name: '베이글칩', category: '베이커리', count: null },
-  { id: '68', name: '체다치즈 베이글칩', category: '베이커리', count: null },
-  { id: '69', name: '큰빵봉지', category: '소모품', count: null },
+  { id: '1', name: '디카페인 원두', category: '원두', count: null, unit: '개' },
+  { id: '2', name: '싱글 원두', category: '원두', count: null, unit: '개' },
+  { id: '3', name: '블랜드 원두', category: '원두', count: null, unit: '개' },
+  { id: '4', name: '청송사과', category: '파우더', count: null, unit: '개' },
+  { id: '5', name: '그린티', category: '파우더', count: null, unit: '개' },
+  { id: '6', name: '말차', category: '파우더', count: null, unit: '개' },
+  { id: '7', name: '미숫가루', category: '파우더', count: null, unit: '개' },
+  { id: '8', name: '쌍화차', category: '파우더', count: null, unit: '개' },
+  { id: '9', name: '민트초코', category: '파우더', count: null, unit: '개' },
+  { id: '10', name: '고구마', category: '파우더', count: null, unit: '개' },
+  { id: '11', name: '더블초코자바칩', category: '파우더', count: null, unit: '개' },
+  { id: '12', name: '초코퍼지', category: '파우더', count: null, unit: '개' },
+  { id: '13', name: '프루맥스', category: '파우더', count: null, unit: '개' },
+  { id: '14', name: '레몬에이드', category: '파우더', count: null, unit: '개' },
+  { id: '15', name: '시그니처', category: '파우더', count: null, unit: '개' },
+  { id: '16', name: '바닐라', category: '파우더', count: null, unit: '개' },
+  { id: '17', name: '헤이즐넛', category: '파우더', count: null, unit: '개' },
+  { id: '18', name: '토피넛', category: '파우더', count: null, unit: '개' },
+  { id: '19', name: '핑크에너지', category: '파우더', count: null, unit: '개' },
+  { id: '20', name: '포도', category: '파우더', count: null, unit: '개' },
+  { id: '21', name: '블루오로라', category: '파우더', count: null, unit: '개' },
+  { id: '22', name: '체리에이드', category: '파우더', count: null, unit: '개' },
+  { id: '23', name: '밀크', category: '파우더', count: null, unit: '개' },
+  { id: '24', name: '밀크쉐이크', category: '파우더', count: null, unit: '개' },
+  { id: '25', name: '홍차', category: '파우더', count: null, unit: '개' },
+  { id: '26', name: '복숭아 아이스티', category: '파우더', count: null, unit: '개' },
+  { id: '27', name: '커피믹스', category: '파우더', count: null, unit: '개' },
+  { id: '28', name: '딸기잼', category: '청/잼/당류', count: null, unit: '개' },
+  { id: '29', name: '블루베리잼', category: '청/잼/당류', count: null, unit: '개' },
+  { id: '30', name: '한라봉잼', category: '청/잼/당류', count: null, unit: '개' },
+  { id: '31', name: '레몬청', category: '청/잼/당류', count: null, unit: '개' },
+  { id: '32', name: '생강청', category: '청/잼/당류', count: null, unit: '개' },
+  { id: '33', name: '연유', category: '청/잼/당류', count: null, unit: '개' },
+  { id: '34', name: '시럽', category: '청/잼/당류', count: null, unit: '개' },
+  { id: '35', name: '설탕', category: '청/잼/당류', count: null, unit: '개' },
+  { id: '36', name: '얼그레이 티백', category: '티백', count: null, unit: '개' },
+  { id: '37', name: '썸머베리 티백', category: '티백', count: null, unit: '개' },
+  { id: '38', name: '캐모마일 티백', category: '티백', count: null, unit: '개' },
+  { id: '39', name: '페퍼민트 티백', category: '티백', count: null, unit: '개' },
+  { id: '40', name: '초코소프트', category: '파우더', count: null, unit: '개' },
+  { id: '41', name: '바닐라스카이', category: '파우더', count: null, unit: '개' },
+  { id: '42', name: '콘', category: '아이스크림', count: null, unit: '개' },
+  { id: '43', name: '콘지', category: '아이스크림', count: null, unit: '개' },
+  { id: '44', name: '아이스크림컵', category: '아이스크림', count: null, unit: '개' },
+  { id: '45', name: '오레오 분태', category: '토핑/부재료', count: null, unit: '개' },
+  { id: '46', name: '쿠앤크', category: '토핑/부재료', count: null, unit: '개' },
+  { id: '47', name: '코코볼', category: '토핑/부재료', count: null, unit: '개' },
+  { id: '48', name: '콘푸로스트', category: '토핑/부재료', count: null, unit: '개' },
+  { id: '49', name: '컴파운드 초코칩', category: '토핑/부재료', count: null, unit: '개' },
+  { id: '50', name: '마카다미아', category: '토핑/부재료', count: null, unit: '개' },
+  { id: '51', name: '가당딸기', category: '토핑/부재료', count: null, unit: '개' },
+  { id: '52', name: '초코쉘', category: '토핑/부재료', count: null, unit: '개' },
+  { id: '53', name: '오렌지 건칩', category: '토핑/부재료', count: null, unit: '개' },
+  { id: '54', name: '플레인 베이글', category: '베이커리', count: null, unit: '개' },
+  { id: '55', name: '어니언 베이글', category: '베이커리', count: null, unit: '개' },
+  { id: '56', name: '크로크무슈', category: '베이커리', count: null, unit: '개' },
+  { id: '57', name: '소금빵', category: '베이커리', count: null, unit: '개' },
+  { id: '58', name: '티라미슈', category: '베이커리', count: null, unit: '개' },
+  { id: '59', name: '뉴욕치즈타르트', category: '베이커리', count: null, unit: '개' },
+  { id: '60', name: '초코 마카롱', category: '베이커리', count: null, unit: '개' },
+  { id: '61', name: '딸기 마카롱', category: '베이커리', count: null, unit: '개' },
+  { id: '62', name: '피자붕어빵', category: '베이커리', count: null, unit: '개' },
+  { id: '63', name: '마카다미아 쿠키', category: '베이커리', count: null, unit: '개' },
+  { id: '64', name: '텍사스 화이트칩 쿠키', category: '베이커리', count: null, unit: '개' },
+  { id: '65', name: '스모어쿠키', category: '베이커리', count: null, unit: '개' },
+  { id: '66', name: '미니초코바이트', category: '베이커리', count: null, unit: '개' },
+  { id: '67', name: '베이글칩', category: '베이커리', count: null, unit: '개' },
+  { id: '68', name: '체다치즈 베이글칩', category: '베이커리', count: null, unit: '개' },
+  { id: '69', name: '큰빵봉지', category: '소모품', count: null, unit: '개' },
   // 신규 추가 품목 (2026.8.9 재고조사 기준)
-  { id: '70', name: '플레인 요거트', category: '파우더', count: null },
-  { id: '71', name: '아이스크림뚜껑', category: '소모품', count: null },
-  { id: '72', name: 'L자봉투', category: '소모품', count: null },
-  { id: '73', name: '망고잼', category: '청/잼/당류', count: null },
-  { id: '74', name: '흑당', category: '청/잼/당류', count: null },
-  { id: '75', name: '코코넛젤리', category: '토핑/부재료', count: null },
-  { id: '76', name: '팥', category: '토핑/부재료', count: null },
-  { id: '77', name: '버터떡', category: '베이커리', count: null },
-  { id: '78', name: '황치즈마카롱', category: '베이커리', count: null },
-  { id: '79', name: '순우유 마카롱', category: '베이커리', count: null },
-  { id: '80', name: '에그타르트', category: '베이커리', count: null },
-  { id: '81', name: '쿠앤크 뚱카롱', category: '베이커리', count: null },
-  { id: '82', name: '팥 붕어빵', category: '베이커리', count: null },
-  { id: '83', name: '크로플', category: '베이커리', count: null },
-  { id: '84', name: '초코칩 쿠키', category: '베이커리', count: null },
-  { id: '85', name: '오레오 케이크', category: '베이커리', count: null },
-  { id: '86', name: '당근 케이크', category: '베이커리', count: null },
-  { id: '87', name: '냉동망고', category: '토핑/부재료', count: null },
-  { id: '88', name: '오렌지 착즙주스', category: '청/잼/당류', count: null },
+  { id: '70', name: '플레인 요거트', category: '파우더', count: null, unit: '개' },
+  { id: '71', name: '아이스크림뚜껑', category: '소모품', count: null, unit: '줄' },
+  { id: '72', name: 'L자봉투', category: '소모품', count: null, unit: '개' },
+  { id: '73', name: '망고잼', category: '청/잼/당류', count: null, unit: '개' },
+  { id: '75', name: '코코넛젤리', category: '토핑/부재료', count: null, unit: '개' },
+  { id: '76', name: '팥', category: '토핑/부재료', count: null, unit: '개' },
+  { id: '77', name: '버터떡', category: '베이커리', count: null, unit: '봉지' },
+  { id: '78', name: '황치즈마카롱', category: '베이커리', count: null, unit: '개' },
+  { id: '79', name: '순우유 마카롱', category: '베이커리', count: null, unit: '개' },
+  { id: '80', name: '에그타르트', category: '베이커리', count: null, unit: '개' },
+  { id: '81', name: '쿠앤크 뚱카롱', category: '베이커리', count: null, unit: '개' },
+  { id: '82', name: '팥 붕어빵', category: '베이커리', count: null, unit: '개' },
+  { id: '83', name: '크로플', category: '베이커리', count: null, unit: '개' },
+  { id: '84', name: '초코칩 쿠키', category: '베이커리', count: null, unit: '개' },
+  { id: '85', name: '오레오 케이크', category: '베이커리', count: null, unit: '개' },
+  { id: '86', name: '당근 케이크', category: '베이커리', count: null, unit: '개' },
+  { id: '87', name: '냉동망고', category: '토핑/부재료', count: null, unit: '개' },
+  { id: '88', name: '오렌지 착즙주스', category: '청/잼/당류', count: null, unit: '개' },
 ];
 
 export default function App() {
@@ -144,6 +144,7 @@ export default function App() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItemName, setNewItemName] = useState('');
   const [newItemCategory, setNewItemCategory] = useState(CATEGORIES[0].name);
+  const [newItemUnit, setNewItemUnit] = useState('개');
 
   // --- 품목 삭제 ---
   const handleDeleteItem = async (id: string, name: string) => {
@@ -162,11 +163,13 @@ export default function App() {
 
     const localSaved = localStorage.getItem('inventory_items');
     let localCountsMap: Record<string, number | null> = {};
+    let localUnitsMap: Record<string, string> = {};
     if (localSaved) {
       try {
         const parsed: InventoryItem[] = JSON.parse(localSaved);
         parsed.forEach(item => {
           localCountsMap[item.id] = item.count;
+          if (item.unit) localUnitsMap[item.id] = item.unit;
         });
       } catch (e) {
         console.error('로컬스토리지 파싱 에러', e);
@@ -177,7 +180,7 @@ export default function App() {
       try {
         const { data: dbItems, error: itemsError } = await supabase
           .from('inventory_items')
-          .select('id, name, category, display_order')
+          .select('id, name, category, unit, display_order')
           .order('display_order', { ascending: true });
 
         if (itemsError) throw itemsError;
@@ -190,6 +193,7 @@ export default function App() {
             name: dbItem.name,
             category: dbItem.category,
             count: localCountsMap[String(dbItem.id)] ?? null,
+            unit: localUnitsMap[String(dbItem.id)] ?? dbItem.unit ?? '개',
             display_order: dbItem.display_order ?? index
           }));
         } else {
@@ -197,6 +201,7 @@ export default function App() {
             id: item.id,
             name: item.name,
             category: item.category,
+            unit: item.unit ?? '개',
             display_order: index
           }));
           const { data: seeded, error: seedError } = await supabase
@@ -209,6 +214,7 @@ export default function App() {
               ...item,
               id: String(item.id),
               count: localCountsMap[String(item.id)] ?? null,
+              unit: localUnitsMap[String(item.id)] ?? item.unit ?? '개',
               display_order: item.display_order ?? index
             }));
           } else {
@@ -247,7 +253,7 @@ export default function App() {
       const mergedItems = parsedItems.map((savedItem: InventoryItem) => {
         const originalItem = INITIAL_DATA.find(init => init.id === savedItem.id);
         if (originalItem) {
-          return { ...savedItem, category: originalItem.category, name: originalItem.name };
+          return { ...savedItem, category: originalItem.category, name: originalItem.name, unit: savedItem.unit || originalItem.unit || '개' };
         }
         return savedItem;
       });
@@ -282,7 +288,8 @@ export default function App() {
                 id: String(newItem.id),
                 name: newItem.name,
                 category: newItem.category,
-                count: 0,
+                count: null,
+                unit: newItem.unit || '개',
                 display_order: newItem.display_order ?? prev.length
               }];
             });
@@ -294,6 +301,7 @@ export default function App() {
                   ...item,
                   name: updated.name,
                   category: updated.category,
+                  unit: updated.unit || item.unit,
                   display_order: updated.display_order ?? item.display_order
                 };
               }
@@ -348,6 +356,11 @@ export default function App() {
     setItems(prev => prev.map(item => item.id === id ? { ...item, count: finalCount } : item));
   };
 
+  // --- 단위 변경 ---
+  const updateUnit = (id: string, newUnit: string) => {
+    setItems(prev => prev.map(item => item.id === id ? { ...item, unit: newUnit } : item));
+  };
+
   // --- 품목 추가 ---
   const handleAddItem = async () => {
     if (!newItemName.trim()) {
@@ -365,12 +378,14 @@ export default function App() {
       name: newItemName.trim(),
       category: newItemCategory,
       count: null,
+      unit: newItemUnit,
       display_order: items.length
     };
 
     setItems(prev => [...prev, newItem]);
     setNewItemName('');
     setNewItemCategory(CATEGORIES[0].name);
+    setNewItemUnit('개');
     setShowAddModal(false);
 
     if (isSupabaseConfigured && supabase) {
@@ -378,12 +393,12 @@ export default function App() {
         id: newId,
         name: newItemName.trim(),
         category: newItemCategory,
+        unit: newItemUnit,
         display_order: items.length
       }]);
     }
   };
 
-  // --- 전체 초기화 ---
   const handleResetAll = () => {
     const isConfirmed = window.confirm("⚠️ 정말 모든 재고 수량을 '미입력(초기 상태)'으로 비우시겠습니까?\n(등록된 품목은 삭제되지 않습니다.)");
     if (isConfirmed) {
@@ -391,7 +406,6 @@ export default function App() {
     }
   };
 
-  // --- 드래그 앤 드롭 순서 변경 ---
   const handleDragEnd = async (result: DropResult) => {
     const { source, destination } = result;
     if (!destination) return;
@@ -417,6 +431,7 @@ export default function App() {
           id: item.id,
           name: item.name,
           category: item.category,
+          unit: item.unit,
           display_order: index
         }));
         await supabase.from('inventory_items').upsert(upsertData, { onConflict: 'id' });
@@ -426,7 +441,6 @@ export default function App() {
     }
   };
 
-  // 3번 개선점: 검색어 및 탭 필터링
   const filteredItems = useMemo(() => {
     return items.filter(item => {
       const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -449,7 +463,8 @@ export default function App() {
     if (activeItems.length === 0) return "조사된 재고가 없습니다.";
     let text = `[테라커피 재고조사 - ${date}]\n\n`;
     activeItems.forEach(item => {
-      text += `${item.name}: ${item.count}개\n`;
+      const unitStr = item.unit || '개';
+      text += `${item.name}: ${item.count} ${unitStr}\n`;
     });
     return text;
   };
@@ -502,7 +517,7 @@ export default function App() {
               테라커피 재고조사
             </h1>
             <div className="flex items-center gap-2">
-              <button onClick={handleResetAll} className="p-2 bg-red-50 hover:bg-red-100 active:bg-red-200 rounded-xl text-red-500 transition-colors shadow-sm" title="모든 수량 0으로 초기화">
+              <button onClick={handleResetAll} className="p-2 bg-red-50 hover:bg-red-100 active:bg-red-200 rounded-xl text-red-500 transition-colors shadow-sm" title="모든 수량 미입력으로 초기화">
                 <RotateCcw className="w-5 h-5" />
               </button>
               <button onClick={() => setShowAddModal(true)} className="flex items-center gap-1 p-2 bg-amber-100 rounded-xl text-amber-700 hover:bg-amber-200 active:bg-amber-300 transition-colors font-semibold text-sm shadow-sm">
@@ -525,7 +540,6 @@ export default function App() {
             />
           </div>
 
-          {/* 3번 개선점: 카테고리 필터 탭 바 */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs font-semibold">
             <button
               onClick={() => setSelectedCategoryTab('전체')}
@@ -571,7 +585,6 @@ export default function App() {
 
               return (
                 <section key={cat.name} className="transition-all">
-                  {/* 3번 개선점: 카테고리 접기/펼치기 아코디언 헤더 */}
                   <div 
                     onClick={() => toggleCategoryCollapse(cat.name)}
                     className="flex items-center justify-between cursor-pointer mb-2.5 px-1 group select-none"
@@ -606,6 +619,7 @@ export default function App() {
                                     item={item} 
                                     onUpdate={updateCount} 
                                     onInput={handleInputChange} 
+                                    onUnitChange={updateUnit}
                                     onDelete={() => handleDeleteItem(item.id, item.name)}
                                     dragHandleProps={provided.dragHandleProps} 
                                   />
@@ -631,7 +645,6 @@ export default function App() {
         </button>
       </footer>
 
-      {/* 새 품목 추가 모달 */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
           <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6">
@@ -644,19 +657,25 @@ export default function App() {
                 <label className="block text-sm font-semibold text-slate-600 mb-2">품목 이름</label>
                 <input type="text" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="예: 바닐라 마카롱" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all" onKeyDown={(e) => e.key === 'Enter' && handleAddItem()} />
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-600 mb-2">카테고리</label>
-                <select value={newItemCategory} onChange={(e) => setNewItemCategory(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all appearance-none">
-                  {CATEGORIES.map(cat => <option key={cat.name} value={cat.name}>{cat.name}</option>)}
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-600 mb-2">카테고리</label>
+                  <select value={newItemCategory} onChange={(e) => setNewItemCategory(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all appearance-none">
+                    {CATEGORIES.map(cat => <option key={cat.name} value={cat.name}>{cat.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-600 mb-2">단위</label>
+                  <select value={newItemUnit} onChange={(e) => setNewItemUnit(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all appearance-none">
+                    {['개', '봉지', '줄', '팩', '통', '박스'].map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
               </div>
               <button onClick={handleAddItem} className="w-full py-4 mt-4 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white font-bold rounded-xl transition-all shadow-md">추가하기</button>
             </div>
           </div>
         </div>
       )}
-
-
 
       {showHistory && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm">
@@ -691,7 +710,7 @@ export default function App() {
                     {record.items.filter(i => i.count !== null && i.count !== undefined).map(i => (
                       <div key={i.id} className="flex justify-between text-sm">
                         <span className="text-slate-600 truncate">{i.name}</span>
-                        <span className={`font-bold ${i.count === 0 ? 'text-red-500' : 'text-slate-900'}`}>{i.count}개</span>
+                        <span className={`font-bold ${i.count === 0 ? 'text-red-500' : 'text-slate-900'}`}>{i.count} {i.unit || '개'}</span>
                       </div>
                     ))}
                   </div>
@@ -709,16 +728,19 @@ function InventoryCard({
   item, 
   onUpdate, 
   onInput,
+  onUnitChange,
   onDelete,
   dragHandleProps
 }: { 
   item: InventoryItem, 
   onUpdate: (id: string, d: number) => void,
   onInput: (id: string, v: string) => void,
+  onUnitChange: (id: string, u: string) => void,
   onDelete: () => void,
   dragHandleProps?: any
 }) {
   const isInputted = item.count !== null && item.count !== undefined;
+  const currentUnit = item.unit || '개';
 
   return (
     <div className={`flex items-center justify-between p-3 transition-colors gap-2 ${isInputted ? 'bg-amber-50/40' : 'bg-transparent'}`}>
@@ -757,7 +779,7 @@ function InventoryCard({
           placeholder="미입력"
           value={item.count === null || item.count === undefined ? '' : item.count}
           onChange={(e) => onInput(item.id, e.target.value)}
-          className={`w-16 sm:w-20 h-9 sm:h-10 text-center font-bold text-sm sm:text-base border rounded-xl focus:ring-2 focus:ring-amber-500 outline-none [appearance:textfield] shrink-0 px-1 ${
+          className={`w-14 sm:w-16 h-8 sm:h-9 text-center font-bold text-sm sm:text-base border rounded-xl focus:ring-2 focus:ring-amber-500 outline-none [appearance:textfield] shrink-0 px-1 ${
             item.count === 0 
               ? 'bg-red-50 border-red-200 text-red-600' 
               : item.count !== null && item.count !== undefined 
@@ -766,11 +788,25 @@ function InventoryCard({
           }`}
         />
 
+        {/* 단위 선택 드롭다운 */}
+        <select
+          value={currentUnit}
+          onChange={(e) => onUnitChange(item.id, e.target.value)}
+          className="h-8 sm:h-9 px-1.5 bg-slate-100 text-slate-700 font-medium text-xs sm:text-sm rounded-xl border-none outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer hover:bg-slate-200 transition-colors"
+        >
+          <option value="개">개</option>
+          <option value="봉지">봉지</option>
+          <option value="줄">줄</option>
+          <option value="팩">팩</option>
+          <option value="통">통</option>
+          <option value="박스">박스</option>
+        </select>
+
         <button
           onClick={() => onUpdate(item.id, 0.5)}
-          className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-slate-900 text-white active:scale-95 transition-all shrink-0"
+          className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl bg-slate-900 text-white active:scale-95 transition-all shrink-0"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-3.5 h-3.5" />
         </button>
       </div>
     </div>
