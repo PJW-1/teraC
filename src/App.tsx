@@ -800,47 +800,31 @@ function InventoryCard({
   const isInputted = item.count !== null && item.count !== undefined;
   const currentUnit = item.unit || '개';
 
-  // 롱프레스 (꾹 누르기) 감지 로직
-  const timerRef = useState<ReturnType<typeof setTimeout> | null>(null);
-  const isLongPress = useState(false);
-
-  const startPress = () => {
-    isLongPress[1](false);
-    timerRef[1](setTimeout(() => {
-      isLongPress[1](true);
-      if (navigator.vibrate) navigator.vibrate(50);
-      onOpenOptions(item);
-    }, 500));
-  };
-
-  const cancelPress = () => {
-    if (timerRef[0]) {
-      clearTimeout(timerRef[0]);
-      timerRef[1](null);
-    }
-  };
-
   return (
     <div className={`flex items-center justify-between p-3.5 transition-colors gap-3 ${isInputted ? 'bg-amber-50/40' : 'bg-transparent'}`}>
-      <div 
-        {...dragHandleProps}
-        onMouseDown={startPress}
-        onMouseUp={cancelPress}
-        onMouseLeave={cancelPress}
-        onTouchStart={startPress}
-        onTouchEnd={cancelPress}
-        onContextMenu={(e) => { e.preventDefault(); onOpenOptions(item); }}
-        className="flex items-center gap-2.5 flex-1 min-w-0 py-1 select-none cursor-grab active:cursor-grabbing touch-none group"
-      >
-        <GripVertical className="w-4 h-4 text-slate-300 group-hover:text-amber-500 transition-colors shrink-0" />
-        <div className="flex items-baseline gap-1.5 min-w-0">
+      <div className="flex items-center gap-2.5 flex-1 min-w-0 py-1">
+        {/* 순서 변경 핸들 (드래그 전용) */}
+        <div 
+          {...dragHandleProps}
+          className="p-1 cursor-grab active:cursor-grabbing touch-none text-slate-300 hover:text-amber-500 transition-colors shrink-0"
+          title="순서 이동 (드래그)"
+        >
+          <GripVertical className="w-4 h-4" />
+        </div>
+
+        {/* 품목 이름 (터치/클릭 시 옵션 모달 오픈) */}
+        <button
+          type="button"
+          onClick={() => onOpenOptions(item)}
+          className="flex items-baseline gap-1.5 min-w-0 text-left cursor-pointer group hover:opacity-80 transition-opacity"
+        >
           <span className={`font-semibold text-sm sm:text-base leading-snug truncate ${isInputted ? 'text-slate-900' : 'text-slate-500'}`}>
             {item.name}
           </span>
-          <span className="text-xs font-medium text-slate-400 shrink-0">
+          <span className="text-xs font-medium text-slate-400 group-hover:text-amber-600 transition-colors shrink-0">
             ({currentUnit})
           </span>
-        </div>
+        </button>
       </div>
 
       <div className="flex items-center gap-1.5 shrink-0">
