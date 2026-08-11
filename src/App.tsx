@@ -139,12 +139,18 @@ export default function App() {
 
   const [showSaved, setShowSaved] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [selectedOptionItem, setSelectedOptionItem] = useState<InventoryItem | null>(null);
 
   // 품목 추가 모달 상태
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItemName, setNewItemName] = useState('');
   const [newItemCategory, setNewItemCategory] = useState(CATEGORIES[0].name);
   const [newItemUnit, setNewItemUnit] = useState('개');
+
+  // --- 품목 옵션 팝업 열기 ---
+  const handleOpenOptions = (item: InventoryItem) => {
+    setSelectedOptionItem(item);
+  };
 
   // --- 품목 삭제 ---
   const handleDeleteItem = async (id: string, name: string) => {
@@ -619,8 +625,7 @@ export default function App() {
                                     item={item} 
                                     onUpdate={updateCount} 
                                     onInput={handleInputChange} 
-                                    onUnitChange={updateUnit}
-                                    onDelete={() => handleDeleteItem(item.id, item.name)}
+                                    onOpenOptions={handleOpenOptions}
                                     dragHandleProps={provided.dragHandleProps} 
                                   />
                                 </div>
@@ -644,6 +649,61 @@ export default function App() {
           {showSaved ? <><CheckCircle2 className="w-6 h-6" />저장 완료!</> : <><Save className="w-6 h-6" />재고 내역 저장</>}
         </button>
       </footer>
+
+      {/* 꾹 눌렀을 때 나타나는 품목 옵션 모달 */}
+      {selectedOptionItem && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl p-6">
+            <div className="flex justify-between items-center mb-5 border-b pb-3">
+              <div>
+                <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md mb-1 inline-block">
+                  {selectedOptionItem.category}
+                </span>
+                <h3 className="font-bold text-lg text-slate-800">{selectedOptionItem.name}</h3>
+              </div>
+              <button onClick={() => setSelectedOptionItem(null)} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200"><X className="w-5 h-5 text-slate-500" /></button>
+            </div>
+
+            <div className="space-y-5">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">단위 변경</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {['개', '봉지', '줄', '팩', '통', '박스'].map(unit => (
+                    <button
+                      key={unit}
+                      onClick={() => {
+                        updateUnit(selectedOptionItem.id, unit);
+                        setSelectedOptionItem(prev => prev ? { ...prev, unit } : null);
+                      }}
+                      className={`py-2.5 rounded-xl font-semibold text-sm transition-all ${
+                        (selectedOptionItem.unit || '개') === unit
+                          ? 'bg-amber-500 text-white shadow-md font-bold'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {unit}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-slate-100">
+                <button
+                  onClick={() => {
+                    const itemToDelete = selectedOptionItem;
+                    setSelectedOptionItem(null);
+                    handleDeleteItem(itemToDelete.id, itemToDelete.name);
+                  }}
+                  className="w-full py-3.5 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-2xl transition-all flex items-center justify-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  품목 삭제하기
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
@@ -728,85 +788,91 @@ function InventoryCard({
   item, 
   onUpdate, 
   onInput,
-  onUnitChange,
-  onDelete,
+  onOpenOptions,
   dragHandleProps
 }: { 
   item: InventoryItem, 
   onUpdate: (id: string, d: number) => void,
   onInput: (id: string, v: string) => void,
-  onUnitChange: (id: string, u: string) => void,
-  onDelete: () => void,
+  onOpenOptions: (item: InventoryItem) => void,
   dragHandleProps?: any
 }) {
   const isInputted = item.count !== null && item.count !== undefined;
   const currentUnit = item.unit || '개';
 
+  // 롱프레스 (꾹 누르기) 감지 로직
+  const timerRef = useState<ReturnType<typeof setTimeout> | null>(null);
+  const isLongPress = useState(false);
+
+  const startPress = () => {
+    isLongPress[1](false);
+    timerRef[1](setTimeout(() => {
+      isLongPress[1](true);
+      if (navigator.vibrate) navigator.vibrate(50);
+      onOpenOptions(item);
+    }, 500));
+  };
+
+  const cancelPress = () => {
+    if (timerRef[0]) {
+      clearTimeout(timerRef[0]);
+      timerRef[1](null);
+    }
+  };
+
   return (
-    <div className={`flex items-center justify-between p-3 transition-colors gap-2 ${isInputted ? 'bg-amber-50/40' : 'bg-transparent'}`}>
+    <div className={`flex items-center justify-between p-3.5 transition-colors gap-3 ${isInputted ? 'bg-amber-50/40' : 'bg-transparent'}`}>
       <div 
-        {...dragHandleProps} 
-        className="flex items-center gap-2 flex-1 min-w-0 py-1 select-none cursor-grab active:cursor-grabbing touch-none group"
+        {...dragHandleProps}
+        onMouseDown={startPress}
+        onMouseUp={cancelPress}
+        onMouseLeave={cancelPress}
+        onTouchStart={startPress}
+        onTouchEnd={cancelPress}
+        onContextMenu={(e) => { e.preventDefault(); onOpenOptions(item); }}
+        className="flex items-center gap-2.5 flex-1 min-w-0 py-1 select-none cursor-grab active:cursor-grabbing touch-none group"
       >
         <GripVertical className="w-4 h-4 text-slate-300 group-hover:text-amber-500 transition-colors shrink-0" />
-        <span className={`font-semibold text-sm sm:text-base leading-snug break-keep ${isInputted ? 'text-slate-900' : 'text-slate-400'}`}>
-          {item.name}
-        </span>
-        <button 
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-          className="p-1 text-slate-300 hover:text-red-500 active:text-red-600 transition-colors ml-1"
-          title="품목 삭제"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        <div className="flex items-baseline gap-1.5 min-w-0">
+          <span className={`font-semibold text-sm sm:text-base leading-snug truncate ${isInputted ? 'text-slate-900' : 'text-slate-500'}`}>
+            {item.name}
+          </span>
+          <span className="text-xs font-medium text-slate-400 shrink-0">
+            ({currentUnit})
+          </span>
+        </div>
       </div>
 
       <div className="flex items-center gap-1.5 shrink-0">
         <button
           onClick={() => onUpdate(item.id, -0.5)}
-          className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 active:bg-slate-200 active:scale-95 transition-all shrink-0"
+          className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 active:bg-slate-200 active:scale-95 transition-all shrink-0"
         >
           <Minus className="w-4 h-4" />
         </button>
 
-        <input
-          type="number"
-          step="0.5"
-          placeholder="미입력"
-          value={item.count === null || item.count === undefined ? '' : item.count}
-          onChange={(e) => onInput(item.id, e.target.value)}
-          className={`w-14 sm:w-16 h-8 sm:h-9 text-center font-bold text-sm sm:text-base border rounded-xl focus:ring-2 focus:ring-amber-500 outline-none [appearance:textfield] shrink-0 px-1 ${
-            item.count === 0 
-              ? 'bg-red-50 border-red-200 text-red-600' 
-              : item.count !== null && item.count !== undefined 
-                ? 'bg-white border-amber-400 text-amber-900 shadow-xs' 
-                : 'bg-slate-50 border-slate-200 text-slate-400 placeholder:text-slate-300 placeholder:font-normal'
-          }`}
-        />
-
-        {/* 단위 선택 드롭다운 */}
-        <select
-          value={currentUnit}
-          onChange={(e) => onUnitChange(item.id, e.target.value)}
-          className="h-8 sm:h-9 px-1.5 bg-slate-100 text-slate-700 font-medium text-xs sm:text-sm rounded-xl border-none outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer hover:bg-slate-200 transition-colors"
-        >
-          <option value="개">개</option>
-          <option value="봉지">봉지</option>
-          <option value="줄">줄</option>
-          <option value="팩">팩</option>
-          <option value="통">통</option>
-          <option value="박스">박스</option>
-        </select>
+        <div className="relative">
+          <input
+            type="number"
+            step="0.5"
+            placeholder="미입력"
+            value={item.count === null || item.count === undefined ? '' : item.count}
+            onChange={(e) => onInput(item.id, e.target.value)}
+            className={`w-18 sm:w-20 h-10 text-center font-bold text-base border rounded-xl focus:ring-2 focus:ring-amber-500 outline-none [appearance:textfield] shrink-0 px-1 ${
+              item.count === 0 
+                ? 'bg-red-50 border-red-200 text-red-600' 
+                : item.count !== null && item.count !== undefined 
+                  ? 'bg-white border-amber-400 text-amber-900 shadow-xs' 
+                  : 'bg-slate-50 border-slate-200 text-slate-400 placeholder:text-slate-300 placeholder:font-normal'
+            }`}
+          />
+        </div>
 
         <button
           onClick={() => onUpdate(item.id, 0.5)}
-          className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl bg-slate-900 text-white active:scale-95 transition-all shrink-0"
+          className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-900 text-white active:scale-95 transition-all shrink-0"
         >
-          <Plus className="w-3.5 h-3.5" />
+          <Plus className="w-4 h-4" />
         </button>
       </div>
     </div>
