@@ -13,7 +13,7 @@ interface InventoryItem {
   id: string;
   name: string;
   category: string;
-  count: number;
+  count: number | null;
   display_order?: number;
 }
 
@@ -106,6 +106,26 @@ const INITIAL_DATA: InventoryItem[] = [
   { id: '67', name: '베이글칩', category: '베이커리', count: 0 },
   { id: '68', name: '체다치즈 베이글칩', category: '베이커리', count: 0 },
   { id: '69', name: '큰빵봉지', category: '소모품', count: 0 },
+  // 신규 추가 품목 (2026.8.9 재고조사 기준)
+  { id: '70', name: '플레인 요거트', category: '파우더', count: 0 },
+  { id: '71', name: '아이스크림뚜껑', category: '소모품', count: 0 },
+  { id: '72', name: 'L자봉투', category: '소모품', count: 0 },
+  { id: '73', name: '망고잼', category: '청/잼/당류', count: 0 },
+  { id: '74', name: '흑당', category: '청/잼/당류', count: 0 },
+  { id: '75', name: '코코넛젤리', category: '토핑/부재료', count: 0 },
+  { id: '76', name: '팥', category: '토핑/부재료', count: 0 },
+  { id: '77', name: '버터떡', category: '베이커리', count: 0 },
+  { id: '78', name: '황치즈마카롱', category: '베이커리', count: 0 },
+  { id: '79', name: '순우유 마카롱', category: '베이커리', count: 0 },
+  { id: '80', name: '에그타르트', category: '베이커리', count: 0 },
+  { id: '81', name: '쿠앤크 뚱카롱', category: '베이커리', count: 0 },
+  { id: '82', name: '팥 붕어빵', category: '베이커리', count: 0 },
+  { id: '83', name: '크로플', category: '베이커리', count: 0 },
+  { id: '84', name: '초코칩 쿠키', category: '베이커리', count: 0 },
+  { id: '85', name: '오레오 케이크', category: '베이커리', count: 0 },
+  { id: '86', name: '당근 케이크', category: '베이커리', count: 0 },
+  { id: '87', name: '냉동망고', category: '토핑/부재료', count: 0 },
+  { id: '88', name: '오렌지 착즙주스', category: '청/잼/당류', count: 0 },
 ];
 
 export default function App() {
@@ -305,13 +325,24 @@ export default function App() {
 
   // --- 수량 업데이트 ---
   const updateCount = (id: string, delta: number) => {
-    const updatedCount = Math.max(0, (items.find(i => i.id === id)?.count || 0) + delta);
-    setItems(prev => prev.map(item => item.id === id ? { ...item, count: updatedCount } : item));
+    setItems(prev => prev.map(item => {
+      if (item.id === id) {
+        const currentCount = item.count ?? 0;
+        const updatedCount = Math.max(0, currentCount + delta);
+        return { ...item, count: updatedCount };
+      }
+      return item;
+    }));
   };
 
   // --- 수량 직접 입력 ---
   const handleInputChange = (id: string, value: string) => {
-    const num = value === '' ? 0 : parseFloat(value);
+    const trimmed = value.trim();
+    if (trimmed === '') {
+      setItems(prev => prev.map(item => item.id === id ? { ...item, count: null } : item));
+      return;
+    }
+    const num = parseFloat(trimmed);
     if (isNaN(num)) return;
     const finalCount = Math.max(0, num);
     setItems(prev => prev.map(item => item.id === id ? { ...item, count: finalCount } : item));
@@ -333,7 +364,7 @@ export default function App() {
       id: newId,
       name: newItemName.trim(),
       category: newItemCategory,
-      count: 0,
+      count: null,
       display_order: items.length
     };
 
@@ -352,13 +383,11 @@ export default function App() {
     }
   };
 
-
-
   // --- 전체 초기화 ---
   const handleResetAll = () => {
-    const isConfirmed = window.confirm("⚠️ 정말 모든 재고 수량을 '0'으로 초기화하시겠습니까?\n(등록된 품목은 삭제되지 않습니다.)");
+    const isConfirmed = window.confirm("⚠️ 정말 모든 재고 수량을 '미입력(초기 상태)'으로 비우시겠습니까?\n(등록된 품목은 삭제되지 않습니다.)");
     if (isConfirmed) {
-      setItems(prev => prev.map(item => ({ ...item, count: 0 })));
+      setItems(prev => prev.map(item => ({ ...item, count: null })));
     }
   };
 
@@ -416,7 +445,7 @@ export default function App() {
 
   const generateReportText = (inventory: InventoryItem[]) => {
     const date = new Date().toLocaleString('ko-KR');
-    const activeItems = inventory.filter(i => i.count > 0);
+    const activeItems = inventory.filter(i => i.count !== null && i.count !== undefined);
     if (activeItems.length === 0) return "조사된 재고가 없습니다.";
     let text = `[테라커피 재고조사 - ${date}]\n\n`;
     activeItems.forEach(item => {
@@ -426,9 +455,9 @@ export default function App() {
   };
 
   const handleFinalSave = async () => {
-    const activeItems = items.filter(i => i.count > 0);
+    const activeItems = items.filter(i => i.count !== null && i.count !== undefined);
     if (activeItems.length === 0) {
-      alert("숫자가 입력된 재고가 없습니다!");
+      alert("입력된 재고가 없습니다!");
       return;
     }
 
@@ -659,10 +688,10 @@ export default function App() {
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                    {record.items.filter(i => i.count > 0).map(i => (
+                    {record.items.filter(i => i.count !== null && i.count !== undefined).map(i => (
                       <div key={i.id} className="flex justify-between text-sm">
                         <span className="text-slate-600 truncate">{i.name}</span>
-                        <span className="font-bold text-slate-900">{i.count}</span>
+                        <span className={`font-bold ${i.count === 0 ? 'text-red-500' : 'text-slate-900'}`}>{i.count}개</span>
                       </div>
                     ))}
                   </div>
@@ -689,14 +718,16 @@ function InventoryCard({
   onDelete: () => void,
   dragHandleProps?: any
 }) {
+  const isInputted = item.count !== null && item.count !== undefined;
+
   return (
-    <div className="flex items-center justify-between p-3 bg-transparent transition-colors gap-2">
+    <div className={`flex items-center justify-between p-3 transition-colors gap-2 ${isInputted ? 'bg-amber-50/40' : 'bg-transparent'}`}>
       <div 
         {...dragHandleProps} 
         className="flex items-center gap-2 flex-1 min-w-0 py-1 select-none cursor-grab active:cursor-grabbing touch-none group"
       >
         <GripVertical className="w-4 h-4 text-slate-300 group-hover:text-amber-500 transition-colors shrink-0" />
-        <span className="font-semibold text-slate-800 text-sm sm:text-base leading-snug break-keep">
+        <span className={`font-semibold text-sm sm:text-base leading-snug break-keep ${isInputted ? 'text-slate-900' : 'text-slate-400'}`}>
           {item.name}
         </span>
         <button 
@@ -723,10 +754,16 @@ function InventoryCard({
         <input
           type="number"
           step="0.5"
-          placeholder="0"
-          value={item.count === 0 ? '' : item.count}
+          placeholder="미입력"
+          value={item.count === null || item.count === undefined ? '' : item.count}
           onChange={(e) => onInput(item.id, e.target.value)}
-          className="w-14 sm:w-18 h-9 sm:h-10 text-center font-bold text-base sm:text-lg bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none [appearance:textfield] shrink-0 px-1"
+          className={`w-16 sm:w-20 h-9 sm:h-10 text-center font-bold text-sm sm:text-base border rounded-xl focus:ring-2 focus:ring-amber-500 outline-none [appearance:textfield] shrink-0 px-1 ${
+            item.count === 0 
+              ? 'bg-red-50 border-red-200 text-red-600' 
+              : item.count !== null && item.count !== undefined 
+                ? 'bg-white border-amber-400 text-amber-900 shadow-xs' 
+                : 'bg-slate-50 border-slate-200 text-slate-400 placeholder:text-slate-300 placeholder:font-normal'
+          }`}
         />
 
         <button
