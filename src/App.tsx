@@ -468,7 +468,7 @@ export default function App() {
     const activeItems = inventory.filter(i => i.count !== null && i.count !== undefined);
     if (activeItems.length === 0) return "조사된 재고가 없습니다.";
     
-    let text = `[테라커피 재고조사 - ${date}]\n\n`;
+    let text = `[테라커피 재고조사 - ${date}]\r\n\r\n`;
 
     const categoryGroups: Record<string, InventoryItem[]> = {};
     activeItems.forEach(item => {
@@ -488,10 +488,10 @@ export default function App() {
     });
 
     const blocks = presentCategories.map(cat => {
-      return categoryGroups[cat].map(item => `${item.name}: ${item.count} ${item.unit || '개'}`).join('\n');
+      return categoryGroups[cat].map(item => `${item.name}: ${item.count} ${item.unit || '개'}`).join('\r\n');
     });
 
-    text += blocks.join('\n\n');
+    text += blocks.join('\r\n\r\n');
     return text;
   };
 
