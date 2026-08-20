@@ -467,11 +467,31 @@ export default function App() {
     const date = new Date().toLocaleString('ko-KR');
     const activeItems = inventory.filter(i => i.count !== null && i.count !== undefined);
     if (activeItems.length === 0) return "조사된 재고가 없습니다.";
+    
     let text = `[테라커피 재고조사 - ${date}]\n\n`;
+
+    const categoryGroups: Record<string, InventoryItem[]> = {};
     activeItems.forEach(item => {
-      const unitStr = item.unit || '개';
-      text += `${item.name}: ${item.count} ${unitStr}\n`;
+      if (!categoryGroups[item.category]) {
+        categoryGroups[item.category] = [];
+      }
+      categoryGroups[item.category].push(item);
     });
+
+    const categoryOrder = CATEGORIES.map(c => c.name);
+    const presentCategories = categoryOrder.filter(cat => categoryGroups[cat] && categoryGroups[cat].length > 0);
+    // CATEGORIES 배열에 없는 카테고리가 있을 경우 대비
+    Object.keys(categoryGroups).forEach(cat => {
+      if (!presentCategories.includes(cat)) {
+        presentCategories.push(cat);
+      }
+    });
+
+    const blocks = presentCategories.map(cat => {
+      return categoryGroups[cat].map(item => `${item.name}: ${item.count} ${item.unit || '개'}`).join('\n');
+    });
+
+    text += blocks.join('\n\n');
     return text;
   };
 
