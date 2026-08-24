@@ -424,23 +424,35 @@ export default function App() {
     try {
       setIsLoading(true);
 
-      // 항목들을 하나씩 또는 청크로 입력/업데이트 (BIGINT id 충돌이나 배치 오류 방지)
       let hasError = false;
       let lastErrorMessage = '';
 
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
-        const payload = {
-          name: item.name,
-          category: item.category,
-          unit: item.unit ?? '개',
-          display_order: item.display_order ?? i
-        };
-
-        // 문자열 ID 또는 생성된 ID에 대해 저장
-        const { error } = await supabase
+        
+        // 1차 시도: unit 포함하여 전송
+        let { error } = await supabase
           .from('inventory_items')
-          .upsert({ id: item.id, ...payload }, { onConflict: 'id' });
+          .upsert({
+            id: item.id,
+            name: item.name,
+            category: item.category,
+            unit: item.unit ?? '개',
+            display_order: item.display_order ?? i
+          }, { onConflict: 'id' });
+
+        // 만약 unit 컬럼이 DB 테이블에 없어서 에러가 발생한 경우 unit 제외하고 2차 시도
+        if (error && error.message?.includes('unit')) {
+          const { error: retryError } = await supabase
+            .from('inventory_items')
+            .upsert({
+              id: item.id,
+              name: item.name,
+              category: item.category,
+              display_order: item.display_order ?? i
+            }, { onConflict: 'id' });
+          error = retryError;
+        }
 
         if (error) {
           console.error(`품목(${item.name}) 동기화 에러:`, error);
