@@ -3,7 +3,7 @@ import {
   Plus, Minus, Search, Coffee, 
   Droplets, Inbox, Save, CheckCircle2, History, X, Copy,
   CupSoda, Cake, IceCream, ShoppingBag, Utensils, RotateCcw,
-  Download, RefreshCw, GripVertical, Trash2, ChevronDown, ChevronUp
+  Download, RefreshCw, GripVertical, Trash2, ChevronDown, ChevronUp, CloudUpload
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import { supabase, isSupabaseConfigured } from './supabase';
@@ -412,6 +412,36 @@ export default function App() {
     }
   };
 
+  // --- 현재 목록을 Supabase DB로 동기화/업로드 ---
+  const handleSyncToSupabase = async () => {
+    if (!isSupabaseConfigured || !supabase) {
+      alert("Supabase DB가 설정되지 않았습니다.");
+      return;
+    }
+    const isConfirmed = window.confirm("☁️ 현재 기기 화면에 보이는 품목 목록(총 " + items.length + "개)을 DB에 전체 동기화할까요?\n(다른 모든 사용자 핸드폰에서도 이 목록으로 통합됩니다.)");
+    if (!isConfirmed) return;
+
+    try {
+      setIsLoading(true);
+      const upsertData = items.map((item, index) => ({
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        unit: item.unit ?? '개',
+        display_order: item.display_order ?? index
+      }));
+
+      const { error } = await supabase.from('inventory_items').upsert(upsertData, { onConflict: 'id' });
+      if (error) throw error;
+      alert("✅ DB 전체 동기화가 완료되었습니다!\n이제 다른 기기에서도 동일한 목록이 공유됩니다.");
+    } catch (err) {
+      console.error('DB 동기화 오류:', err);
+      alert("❌ DB 동기화 도중 오류가 발생했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleDragEnd = async (result: DropResult) => {
     const { source, destination } = result;
     if (!destination) return;
@@ -543,6 +573,9 @@ export default function App() {
               테라커피 재고조사
             </h1>
             <div className="flex items-center gap-2">
+              <button onClick={handleSyncToSupabase} className="p-2 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 rounded-xl text-blue-600 transition-colors shadow-sm" title="현재 품목 목록 DB 전체 동기화">
+                <CloudUpload className="w-5 h-5" />
+              </button>
               <button onClick={handleResetAll} className="p-2 bg-red-50 hover:bg-red-100 active:bg-red-200 rounded-xl text-red-500 transition-colors shadow-sm" title="모든 수량 미입력으로 초기화">
                 <RotateCcw className="w-5 h-5" />
               </button>
