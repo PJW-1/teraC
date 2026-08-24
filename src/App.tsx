@@ -186,7 +186,7 @@ export default function App() {
       try {
         const { data: dbItems, error: itemsError } = await supabase
           .from('inventory_items')
-          .select('id, name, category, unit, display_order')
+          .select('*')
           .order('display_order', { ascending: true });
 
         if (itemsError) throw itemsError;
@@ -194,6 +194,7 @@ export default function App() {
         let baseItems: InventoryItem[] = [];
 
         if (dbItems && dbItems.length > 0) {
+          const dbItemIds = new Set(dbItems.map(d => String(d.id)));
           baseItems = dbItems.map((dbItem, index) => ({
             id: String(dbItem.id),
             name: dbItem.name,
@@ -202,6 +203,18 @@ export default function App() {
             unit: localUnitsMap[String(dbItem.id)] ?? dbItem.unit ?? '개',
             display_order: dbItem.display_order ?? index
           }));
+
+          // 로컬스토리지에만 있던 새로운 품목도 병합하여 유실 방지
+          if (localSaved) {
+            try {
+              const parsed: InventoryItem[] = JSON.parse(localSaved);
+              parsed.forEach(item => {
+                if (!dbItemIds.has(String(item.id)) && !baseItems.some(b => b.name === item.name)) {
+                  baseItems.push(item);
+                }
+              });
+            } catch (e) {}
+          }
         } else {
           const formattedInitial = INITIAL_DATA.map((item, index) => ({
             id: item.id,
