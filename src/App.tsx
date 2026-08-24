@@ -423,20 +423,40 @@ export default function App() {
 
     try {
       setIsLoading(true);
-      const upsertData = items.map((item, index) => ({
-        id: item.id,
-        name: item.name,
-        category: item.category,
-        unit: item.unit ?? '개',
-        display_order: item.display_order ?? index
-      }));
 
-      const { error } = await supabase.from('inventory_items').upsert(upsertData, { onConflict: 'id' });
-      if (error) throw error;
-      alert("✅ DB 전체 동기화가 완료되었습니다!\n이제 다른 기기에서도 동일한 목록이 공유됩니다.");
-    } catch (err) {
+      // 항목들을 하나씩 또는 청크로 입력/업데이트 (BIGINT id 충돌이나 배치 오류 방지)
+      let hasError = false;
+      let lastErrorMessage = '';
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const payload = {
+          name: item.name,
+          category: item.category,
+          unit: item.unit ?? '개',
+          display_order: item.display_order ?? i
+        };
+
+        // 문자열 ID 또는 생성된 ID에 대해 저장
+        const { error } = await supabase
+          .from('inventory_items')
+          .upsert({ id: item.id, ...payload }, { onConflict: 'id' });
+
+        if (error) {
+          console.error(`품목(${item.name}) 동기화 에러:`, error);
+          hasError = true;
+          lastErrorMessage = error.message || JSON.stringify(error);
+        }
+      }
+
+      if (hasError) {
+        alert(`⚠️ 일부 품목 동기화 중 에러가 발생했습니다.\n에러 내용: ${lastErrorMessage}`);
+      } else {
+        alert("✅ DB 전체 동기화가 완료되었습니다!\n이제 다른 기기에서도 동일한 목록이 공유됩니다.");
+      }
+    } catch (err: any) {
       console.error('DB 동기화 오류:', err);
-      alert("❌ DB 동기화 도중 오류가 발생했습니다.");
+      alert(`❌ DB 동기화 오류가 발생했습니다.\n오류 내용: ${err?.message || err}`);
     } finally {
       setIsLoading(false);
     }
