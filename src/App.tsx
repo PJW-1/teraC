@@ -3,7 +3,7 @@ import {
   Plus, Minus, Search, Coffee, 
   Droplets, Inbox, Save, CheckCircle2, History, X, Copy,
   CupSoda, Cake, IceCream, ShoppingBag, Utensils, RotateCcw,
-  Download, RefreshCw, GripVertical, Trash2, ChevronDown, ChevronUp, CloudUpload
+  Download, RefreshCw, Trash2, ChevronDown, ChevronUp, CloudUpload
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import { supabase, isSupabaseConfigured } from './supabase';
@@ -899,38 +899,32 @@ function InventoryCard({
   const currentUnit = item.unit || '개';
 
   return (
-    <div className={`flex items-center justify-between p-3.5 transition-colors gap-3 ${isInputted ? 'bg-amber-50/40' : 'bg-transparent'}`}>
-      <div className="flex items-center gap-2.5 flex-1 min-w-0 py-1">
-        {/* 순서 변경 핸들 (드래그 전용) */}
-        <div 
-          {...dragHandleProps}
-          className="p-1 cursor-grab active:cursor-grabbing touch-none text-slate-300 hover:text-amber-500 transition-colors shrink-0"
-          title="순서 이동 (드래그)"
-        >
-          <GripVertical className="w-4 h-4" />
-        </div>
-
-        {/* 품목 이름 (터치/클릭 시 옵션 모달 오픈) */}
-        <button
-          type="button"
-          onClick={() => onOpenOptions(item)}
-          className="flex items-baseline gap-1.5 min-w-0 text-left cursor-pointer group hover:opacity-80 transition-opacity"
-        >
-          <span className={`font-semibold text-sm sm:text-base leading-snug truncate ${isInputted ? 'text-slate-900' : 'text-slate-500'}`}>
+    <div className={`flex items-center justify-between py-2.5 px-3 transition-colors gap-2 ${isInputted ? 'bg-amber-50/40' : 'bg-transparent'}`}>
+      {/* 품목 영역: 꾹 누르면 순서 이동(드래그), 탭/클릭하면 세부 옵션 모달 */}
+      <div 
+        {...dragHandleProps}
+        onClick={() => onOpenOptions(item)}
+        className="flex items-center flex-1 min-w-0 py-1.5 cursor-pointer select-none group"
+      >
+        <div className="flex items-baseline gap-1.5 min-w-0">
+          <span className={`font-semibold text-sm sm:text-base leading-snug truncate ${isInputted ? 'text-slate-900' : 'text-slate-600'}`}>
             {item.name}
           </span>
           <span className="text-xs font-medium text-slate-400 group-hover:text-amber-600 transition-colors shrink-0">
             ({currentUnit})
           </span>
-        </button>
+        </div>
       </div>
 
-      <div className="flex items-center gap-1.5 shrink-0">
+      {/* 수량 조절 버튼 및 입력 UI (사이즈를 콤팩트하게 최적화하여 품목명 공간 최대 확보) */}
+      <div className="flex items-center gap-1 shrink-0">
         <button
+          type="button"
           onClick={() => onUpdate(item.id, -0.5)}
-          className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 active:bg-slate-200 active:scale-95 transition-all shrink-0"
+          className="w-8.5 h-8.5 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg bg-slate-100 text-slate-600 active:bg-slate-200 active:scale-95 transition-all shrink-0 hover:bg-slate-200"
+          title="0.5 감소"
         >
-          <Minus className="w-4 h-4" />
+          <Minus className="w-3.5 h-3.5" />
         </button>
 
         <div className="relative">
@@ -940,7 +934,7 @@ function InventoryCard({
             placeholder="미입력"
             value={item.count === null || item.count === undefined ? '' : item.count}
             onChange={(e) => onInput(item.id, e.target.value)}
-            className={`w-18 sm:w-20 h-10 text-center font-bold text-base border rounded-xl focus:ring-2 focus:ring-amber-500 outline-none [appearance:textfield] shrink-0 px-1 ${
+            className={`w-14 sm:w-16 h-8.5 sm:h-9 text-center font-bold text-sm sm:text-base border rounded-lg focus:ring-2 focus:ring-amber-500 outline-none [appearance:textfield] shrink-0 px-0.5 ${
               item.count === 0 
                 ? 'bg-red-50 border-red-200 text-red-600' 
                 : item.count !== null && item.count !== undefined 
@@ -951,10 +945,12 @@ function InventoryCard({
         </div>
 
         <button
+          type="button"
           onClick={() => onUpdate(item.id, 0.5)}
-          className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-900 text-white active:scale-95 transition-all shrink-0"
+          className="w-8.5 h-8.5 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg bg-slate-900 text-white active:scale-95 transition-all shrink-0 hover:bg-slate-800"
+          title="0.5 증가"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-3.5 h-3.5" />
         </button>
       </div>
     </div>
