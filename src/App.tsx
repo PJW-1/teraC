@@ -5,8 +5,12 @@ import {
   CupSoda, Cake, IceCream, ShoppingBag, Utensils, RotateCcw,
   Download, RefreshCw, Trash2, ChevronDown, ChevronUp, CloudUpload
 } from 'lucide-react';
-import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
+import { DragDropContext, Droppable, Draggable, useMouseSensor, useKeyboardSensor, type DropResult } from '@hello-pangea/dnd';
 import { supabase, isSupabaseConfigured } from './supabase';
+import { useLongPressTouchSensor } from './useLongPressTouchSensor';
+
+// 기본 터치 센서 대신 더 길게 눌러야 드래그되는 터치 센서를 쓴다
+const DND_SENSORS = [useMouseSensor, useKeyboardSensor, useLongPressTouchSensor];
 
 // --- 재고 데이터 구조 정의 ---
 interface InventoryItem {
@@ -539,7 +543,7 @@ export default function App() {
   };
 
   const generateReportText = (inventory: InventoryItem[]) => {
-    const date = new Date().toLocaleString('ko-KR');
+    const date = new Date().toLocaleDateString('ko-KR');
     const activeItems = inventory.filter(i => i.count !== null && i.count !== undefined);
     if (activeItems.length === 0) return "조사된 재고가 없습니다.";
     
@@ -678,7 +682,7 @@ export default function App() {
           <p className="text-sm font-medium">재고 데이터 로딩 중...</p>
         </div>
       ) : (
-        <DragDropContext onDragEnd={handleDragEnd}>
+        <DragDropContext onDragEnd={handleDragEnd} enableDefaultSensors={false} sensors={DND_SENSORS}>
           <main className="max-w-2xl mx-auto p-4 space-y-6">
             {CATEGORIES.map(cat => {
               if (selectedCategoryTab !== '전체' && selectedCategoryTab !== cat.name) return null;
