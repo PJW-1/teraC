@@ -3,7 +3,7 @@ import {
   Plus, Minus, Search, Coffee, 
   Droplets, Inbox, Save, CheckCircle2, History, X, Copy,
   CupSoda, Cake, IceCream, ShoppingBag, Utensils, RotateCcw,
-  Download, RefreshCw, Trash2, ChevronDown, ChevronUp, CloudUpload
+  Download, RefreshCw, Trash2, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, useMouseSensor, useKeyboardSensor, type DropResult } from '@hello-pangea/dnd';
 import { supabase, isSupabaseConfigured } from './supabase';
@@ -173,13 +173,11 @@ export default function App() {
 
     const localSaved = localStorage.getItem('inventory_items');
     let localCountsMap: Record<string, number | null> = {};
-    let localUnitsMap: Record<string, string> = {};
     if (localSaved) {
       try {
         const parsed: InventoryItem[] = JSON.parse(localSaved);
         parsed.forEach(item => {
           localCountsMap[item.id] = item.count;
-          if (item.unit) localUnitsMap[item.id] = item.unit;
         });
       } catch (e) {
         console.error('로컬스토리지 파싱 에러', e);
@@ -198,27 +196,16 @@ export default function App() {
         let baseItems: InventoryItem[] = [];
 
         if (dbItems && dbItems.length > 0) {
-          const dbItemIds = new Set(dbItems.map(d => String(d.id)));
+          // 품목 목록과 단위는 DB만 기준으로 삼는다. 수량만 기기별 로컬스토리지 값을 쓴다.
+          // (로컬스토리지에만 있는 품목을 다시 붙이면 다른 기기에서 지운 품목이 되살아난다)
           baseItems = dbItems.map((dbItem, index) => ({
             id: String(dbItem.id),
             name: dbItem.name,
             category: dbItem.category,
             count: localCountsMap[String(dbItem.id)] ?? null,
-            unit: localUnitsMap[String(dbItem.id)] ?? dbItem.unit ?? '개',
+            unit: dbItem.unit ?? '개',
             display_order: dbItem.display_order ?? index
           }));
-
-          // 로컬스토리지에만 있던 새로운 품목도 병합하여 유실 방지
-          if (localSaved) {
-            try {
-              const parsed: InventoryItem[] = JSON.parse(localSaved);
-              parsed.forEach(item => {
-                if (!dbItemIds.has(String(item.id)) && !baseItems.some(b => b.name === item.name)) {
-                  baseItems.push(item);
-                }
-              });
-            } catch (e) {}
-          }
         } else {
           const formattedInitial = INITIAL_DATA.map((item, index) => ({
             id: item.id,
@@ -237,7 +224,7 @@ export default function App() {
               ...item,
               id: String(item.id),
               count: localCountsMap[String(item.id)] ?? null,
-              unit: localUnitsMap[String(item.id)] ?? item.unit ?? '개',
+              unit: item.unit ?? '개',
               display_order: item.display_order ?? index
             }));
           } else {
@@ -379,9 +366,20 @@ export default function App() {
     setItems(prev => prev.map(item => item.id === id ? { ...item, count: finalCount } : item));
   };
 
-  // --- 단위 변경 ---
-  const updateUnit = (id: string, newUnit: string) => {
+  // --- 단위 변경 (모든 기기가 같은 단위를 쓰도록 바로 DB에 저장) ---
+  const updateUnit = async (id: string, newUnit: string) => {
+    const prevUnit = items.find(item => item.id === id)?.unit;
     setItems(prev => prev.map(item => item.id === id ? { ...item, unit: newUnit } : item));
+
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('inventory_items').update({ unit: newUnit }).eq('id', id);
+      if (error) {
+        console.error('단위 저장 실패:', error);
+        setItems(prev => prev.map(item => item.id === id ? { ...item, unit: prevUnit } : item));
+        setSelectedOptionItem(prev => prev && prev.id === id ? { ...prev, unit: prevUnit } : prev);
+        alert("⚠️ 단위를 DB에 저장하지 못했습니다.\n인터넷 연결을 확인하고 다시 시도해주세요.");
+      }
+    }
   };
 
   // --- 품목 추가 ---
@@ -412,13 +410,19 @@ export default function App() {
     setShowAddModal(false);
 
     if (isSupabaseConfigured && supabase) {
-      await supabase.from('inventory_items').insert([{
+      const { error } = await supabase.from('inventory_items').insert([{
         id: newId,
         name: newItemName.trim(),
         category: newItemCategory,
         unit: newItemUnit,
         display_order: items.length
       }]);
+      // DB에 없는 품목은 다음에 앱을 열 때 사라지므로, 화면에서도 빼고 다시 추가하도록 알린다
+      if (error) {
+        console.error('품목 추가 실패:', error);
+        setItems(prev => prev.filter(i => i.id !== newId));
+        alert(`⚠️ '${newItem.name}' 품목을 DB에 저장하지 못했습니다.\n인터넷 연결을 확인하고 다시 추가해주세요.`);
+      }
     }
   };
 
@@ -426,68 +430,6 @@ export default function App() {
     const isConfirmed = window.confirm("⚠️ 정말 모든 재고 수량을 '미입력(초기 상태)'으로 비우시겠습니까?\n(등록된 품목은 삭제되지 않습니다.)");
     if (isConfirmed) {
       setItems(prev => prev.map(item => ({ ...item, count: null })));
-    }
-  };
-
-  // --- 현재 목록을 Supabase DB로 동기화/업로드 ---
-  const handleSyncToSupabase = async () => {
-    if (!isSupabaseConfigured || !supabase) {
-      alert("Supabase DB가 설정되지 않았습니다.");
-      return;
-    }
-    const isConfirmed = window.confirm("☁️ 현재 기기 화면에 보이는 품목 목록(총 " + items.length + "개)을 DB에 전체 동기화할까요?\n(다른 모든 사용자 핸드폰에서도 이 목록으로 통합됩니다.)");
-    if (!isConfirmed) return;
-
-    try {
-      setIsLoading(true);
-
-      let hasError = false;
-      let lastErrorMessage = '';
-
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        
-        // 1차 시도: unit 포함하여 전송
-        let { error } = await supabase
-          .from('inventory_items')
-          .upsert({
-            id: item.id,
-            name: item.name,
-            category: item.category,
-            unit: item.unit ?? '개',
-            display_order: item.display_order ?? i
-          }, { onConflict: 'id' });
-
-        // 만약 unit 컬럼이 DB 테이블에 없어서 에러가 발생한 경우 unit 제외하고 2차 시도
-        if (error && error.message?.includes('unit')) {
-          const { error: retryError } = await supabase
-            .from('inventory_items')
-            .upsert({
-              id: item.id,
-              name: item.name,
-              category: item.category,
-              display_order: item.display_order ?? i
-            }, { onConflict: 'id' });
-          error = retryError;
-        }
-
-        if (error) {
-          console.error(`품목(${item.name}) 동기화 에러:`, error);
-          hasError = true;
-          lastErrorMessage = error.message || JSON.stringify(error);
-        }
-      }
-
-      if (hasError) {
-        alert(`⚠️ 일부 품목 동기화 중 에러가 발생했습니다.\n에러 내용: ${lastErrorMessage}`);
-      } else {
-        alert("✅ DB 전체 동기화가 완료되었습니다!\n이제 다른 기기에서도 동일한 목록이 공유됩니다.");
-      }
-    } catch (err: any) {
-      console.error('DB 동기화 오류:', err);
-      alert(`❌ DB 동기화 오류가 발생했습니다.\n오류 내용: ${err?.message || err}`);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -511,17 +453,19 @@ export default function App() {
     setItems(updatedItems);
 
     if (isSupabaseConfigured && supabase) {
-      try {
-        const upsertData = updatedItems.map((item, index) => ({
-          id: item.id,
-          name: item.name,
-          category: item.category,
-          unit: item.unit,
-          display_order: index
-        }));
-        await supabase.from('inventory_items').upsert(upsertData, { onConflict: 'id' });
-      } catch (err) {
-        console.error('순서 저장 실패:', err);
+      const upsertData = updatedItems.map((item, index) => ({
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        unit: item.unit,
+        display_order: index
+      }));
+      const { error } = await supabase.from('inventory_items').upsert(upsertData, { onConflict: 'id' });
+      // 순서는 모든 기기가 DB 값을 따르므로, 저장하지 못했으면 화면도 원래 순서로 되돌린다
+      if (error) {
+        console.error('순서 저장 실패:', error);
+        setItems(items);
+        alert("⚠️ 바꾼 순서를 DB에 저장하지 못했습니다.\n인터넷 연결을 확인하고 다시 시도해주세요.");
       }
     }
   };
@@ -622,9 +566,6 @@ export default function App() {
               테라커피 재고조사
             </h1>
             <div className="flex items-center gap-2">
-              <button onClick={handleSyncToSupabase} className="p-2 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 rounded-xl text-blue-600 transition-colors shadow-sm" title="현재 품목 목록 DB 전체 동기화">
-                <CloudUpload className="w-5 h-5" />
-              </button>
               <button onClick={handleResetAll} className="p-2 bg-red-50 hover:bg-red-100 active:bg-red-200 rounded-xl text-red-500 transition-colors shadow-sm" title="모든 수량 미입력으로 초기화">
                 <RotateCcw className="w-5 h-5" />
               </button>
