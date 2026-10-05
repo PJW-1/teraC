@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   Plus, Minus, Search, Coffee, 
   Droplets, Inbox, Save, CheckCircle2, History, X, Copy,
@@ -143,6 +143,10 @@ export default function App() {
 
   const [showSaved, setShowSaved] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  // 마지막 드래그 순서 저장 요청 번호. 늦게 실패한 옛 요청이 새 순서를 되돌리지 않게 한다
+  const dragSaveSeq = useRef(0);
+  // 품목별 마지막 단위 저장 요청 번호. 같은 단위로 다시 바꾼 경우도 옛 요청과 구별한다
+  const unitSaveSeq = useRef(new Map<string, number>());
   const [selectedOptionItem, setSelectedOptionItem] = useState<InventoryItem | null>(null);
 
   // 품목 추가 모달 상태
@@ -369,14 +373,19 @@ export default function App() {
   // --- 단위 변경 (모든 기기가 같은 단위를 쓰도록 바로 DB에 저장) ---
   const updateUnit = async (id: string, newUnit: string) => {
     const prevUnit = items.find(item => item.id === id)?.unit;
+    const seq = (unitSaveSeq.current.get(id) ?? 0) + 1;
+    unitSaveSeq.current.set(id, seq);
     setItems(prev => prev.map(item => item.id === id ? { ...item, unit: newUnit } : item));
 
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.from('inventory_items').update({ unit: newUnit }).eq('id', id);
       if (error) {
         console.error('단위 저장 실패:', error);
-        setItems(prev => prev.map(item => item.id === id ? { ...item, unit: prevUnit } : item));
-        setSelectedOptionItem(prev => prev && prev.id === id ? { ...prev, unit: prevUnit } : prev);
+        // 그 사이 이 기기나 다른 기기에서 단위를 다시 바꿨다면 그 변경을 지우지 않는다
+        if (unitSaveSeq.current.get(id) === seq) {
+          setItems(prev => prev.map(item => item.id === id && item.unit === newUnit ? { ...item, unit: prevUnit } : item));
+          setSelectedOptionItem(prev => prev && prev.id === id && prev.unit === newUnit ? { ...prev, unit: prevUnit } : prev);
+        }
         alert("⚠️ 단위를 DB에 저장하지 못했습니다.\n인터넷 연결을 확인하고 다시 시도해주세요.");
       }
     }
@@ -450,6 +459,9 @@ export default function App() {
       display_order: index
     }));
 
+    const prevIndex = new Map(items.map((item, index) => [item.id, index]));
+    const prevDisplayOrder = new Map(items.map(item => [item.id, item.display_order]));
+    const seq = ++dragSaveSeq.current;
     setItems(updatedItems);
 
     if (isSupabaseConfigured && supabase) {
@@ -461,10 +473,24 @@ export default function App() {
         display_order: index
       }));
       const { error } = await supabase.from('inventory_items').upsert(upsertData, { onConflict: 'id' });
-      // 순서는 모든 기기가 DB 값을 따르므로, 저장하지 못했으면 화면도 원래 순서로 되돌린다
+      // 순서는 모든 기기가 DB 값을 따르므로, 저장하지 못했으면 화면도 DB 순서로 맞춘다.
+      // 그 사이 다른 기기가 순서를 바꿨을 수 있어 DB 순서를 다시 읽고, 읽지 못하면 드래그 전 순서로 되돌린다.
+      // 순서만 바꾸고(저장 중에 입력한 수량 등은 유지), 그 뒤에 다시 드래그했다면 건드리지 않는다
       if (error) {
         console.error('순서 저장 실패:', error);
-        setItems(items);
+        if (seq === dragSaveSeq.current) {
+          const { data: dbRows } = await supabase.from('inventory_items').select('id, display_order');
+          const dbOrder = dbRows ? new Map(dbRows.map(row => [String(row.id), row.display_order as number | undefined])) : null;
+          if (seq === dragSaveSeq.current) {
+            setItems(prev => dbOrder
+              ? prev
+                  .map(item => dbOrder.has(item.id) ? { ...item, display_order: dbOrder.get(item.id) } : item)
+                  .sort((a, b) => (a.display_order ?? Number.MAX_SAFE_INTEGER) - (b.display_order ?? Number.MAX_SAFE_INTEGER))
+              : prev
+                  .map(item => prevDisplayOrder.has(item.id) ? { ...item, display_order: prevDisplayOrder.get(item.id) } : item)
+                  .sort((a, b) => (prevIndex.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (prevIndex.get(b.id) ?? Number.MAX_SAFE_INTEGER)));
+          }
+        }
         alert("⚠️ 바꾼 순서를 DB에 저장하지 못했습니다.\n인터넷 연결을 확인하고 다시 시도해주세요.");
       }
     }
@@ -795,8 +821,13 @@ export default function App() {
                     <div className="flex items-center gap-2">
                       <button 
                         onClick={() => {
-                          if(window.confirm("⚠️ 이 기록의 재고 수량과 순서로 현재 화면을 덮어쓰시겠습니까?")) {
-                            setItems([...record.items]);
+                          if(window.confirm("⚠️ 이 기록의 재고 수량으로 현재 화면을 덮어쓰시겠습니까?")) {
+                            // 품목 목록·순서·단위는 DB 기준을 유지하고 수량만 기록에서 가져온다
+                            // (기록 전체로 바꾸면 지운 품목이 되살아나고 다음 드래그 때 DB에 다시 저장된다)
+                            setItems(prev => prev.map(item => {
+                              const saved = record.items.find(r => r.id === item.id) ?? record.items.find(r => r.name === item.name);
+                              return { ...item, count: saved ? (saved.count ?? null) : null };
+                            }));
                             setShowHistory(false);
                             alert("기록을 성공적으로 불러왔습니다.");
                           }
