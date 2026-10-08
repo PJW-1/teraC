@@ -16,11 +16,23 @@ describe('routes', () => {
     expect(nav).toHaveTextContent('관리');
   });
 
-  it('labels the owner menu link to the count screen 재고 조사', async () => {
-    renderApp('/admin');
-    const link = await screen.findByRole('link', { name: '재고 조사' });
-    expect(link).toHaveAttribute('href', '/count');
-    expect(screen.queryByText('직접 조사하기')).not.toBeInTheDocument();
+  it('opens item management from the 관리 tab under the same menu', async () => {
+    const user = userEvent.setup();
+    const { router } = renderApp('/count');
+    await screen.findByRole('heading', { name: '재고 조사' });
+    await user.click(within(screen.getByRole('navigation', { name: '주요 메뉴' })).getByRole('link', { name: '관리' }));
+    expect(router.state.location.pathname).toBe('/admin');
+    expect(await screen.findByRole('heading', { name: '품목 관리' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: '주요 메뉴' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: '관리 메뉴' })).toBeNull();
+  });
+
+  it.each(['/admin/stock', '/admin/records', '/admin/records/abc', '/admin/items'])('sends the old admin address %s to item management', async path => {
+    const { router } = renderApp(path);
+    expect(await screen.findByRole('heading', { name: '품목 관리' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/admin');
+    expect(screen.queryByText('대시보드')).toBeNull();
+    expect(screen.queryByText('재고 현황')).toBeNull();
   });
 
   it('goes back to the count screen from the store name in the header', async () => {
@@ -39,13 +51,10 @@ describe('routes', () => {
     expect(await screen.findByRole('heading', { name: '재고 조사' })).toBeInTheDocument();
   });
 
-  it('goes to the count screen from the store name on the admin screens', async () => {
+  it('goes to the count screen from the store name on the item management screen', async () => {
     const user = userEvent.setup();
-    const { router } = renderApp('/admin/stock');
-    // 데스크톱 사이드바와 모바일 머리글에 모두 있다(jsdom 은 숨김 클래스를 적용하지 않는다)
-    const links = await screen.findAllByRole('link', { name: STORE_NAME });
-    expect(links).toHaveLength(2);
-    await user.click(links[1]);
+    const { router } = renderApp('/admin');
+    await user.click(await screen.findByRole('link', { name: STORE_NAME }));
     expect(router.state.location.pathname).toBe('/count');
   });
 

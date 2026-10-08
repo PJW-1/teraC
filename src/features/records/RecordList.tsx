@@ -16,7 +16,7 @@ function preview(names: string[]) {
   return names.length > PREVIEW_COUNT ? `${head} 외 ${names.length - PREVIEW_COUNT}개` : head;
 }
 
-/** 조사 기록 목록: 최신순, 날짜별로 묶어 한 번에 20건씩. basePath 는 '/records' 또는 '/admin/records'. */
+/** 조사 기록 목록: 최신순, 날짜별로 묶어 한 번에 20건씩. basePath 는 '/records'. */
 export function RecordList({ basePath }: { basePath: string }) {
   const records = useInfiniteQuery({
     queryKey: [...historyKeys.list(), 'pages'],

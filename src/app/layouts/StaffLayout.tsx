@@ -1,4 +1,4 @@
-import { ClipboardList, Crown, History, LayoutDashboard } from 'lucide-react';
+import { ClipboardList, Crown, History, Package } from 'lucide-react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { cn } from '../../components/ui';
 import { STORE_NAME } from '../../lib/store';
@@ -8,7 +8,7 @@ import { tabIndicator } from './navStyles';
 const tabs = [
   { to: '/count', label: '조사', icon: ClipboardList, end: true },
   { to: '/records', label: '기록', icon: History, end: false },
-  { to: '/admin', label: '관리', icon: LayoutDashboard, end: false },
+  { to: '/admin', label: '관리', icon: Package, end: false },
 ];
 
 /** 조사 화면(모바일 우선): 매장 머리글과 하단 탭 조사 · 기록 · 관리 */

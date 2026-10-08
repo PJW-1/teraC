@@ -13,14 +13,14 @@ beforeEach(() => {
 
 describe('ItemsPage', () => {
   it('lists items per category with their unit', async () => {
-    renderApp('/admin/items');
+    renderApp('/admin');
     const row = await screen.findByRole('listitem', { name: '콘' });
     expect(within(row).getByText('단위 줄')).toBeInTheDocument();
     expect(within(screen.getByRole('region', { name: '파우더' })).getByText('말차')).toBeInTheDocument();
   });
 
   it('adds an item from the header button and persists it', async () => {
-    renderApp('/admin/items');
+    renderApp('/admin');
     await screen.findByRole('listitem', { name: '말차' });
     await userEvent.click(screen.getByRole('button', { name: '품목 추가' }));
     expect(screen.getByLabelText('카테고리')).toHaveValue('파우더');
@@ -33,14 +33,14 @@ describe('ItemsPage', () => {
   });
 
   it('preselects the category of the card button', async () => {
-    renderApp('/admin/items');
+    renderApp('/admin');
     await screen.findByRole('listitem', { name: '말차' });
     await userEvent.click(screen.getByRole('button', { name: '아이스크림에 품목 추가' }));
     expect(screen.getByLabelText('카테고리')).toHaveValue('아이스크림');
   });
 
   it('shows validation errors and keeps the sheet open', async () => {
-    renderApp('/admin/items');
+    renderApp('/admin');
     await screen.findByRole('listitem', { name: '말차' });
     await userEvent.click(screen.getByRole('button', { name: '품목 추가' }));
     await userEvent.click(screen.getByRole('button', { name: '저장' }));
@@ -52,7 +52,7 @@ describe('ItemsPage', () => {
   });
 
   it('edits the name and unit, showing the category as text', async () => {
-    renderApp('/admin/items');
+    renderApp('/admin');
     await userEvent.click(await screen.findByRole('button', { name: '말차 수정' }));
     expect(screen.getByText('카테고리: 파우더')).toBeInTheDocument();
     expect(screen.queryByLabelText('카테고리')).toBeNull();
@@ -67,7 +67,7 @@ describe('ItemsPage', () => {
   });
 
   it('deletes after confirming, and cancel keeps the item', async () => {
-    renderApp('/admin/items');
+    renderApp('/admin');
     await userEvent.click(await screen.findByRole('button', { name: '말차 수정' }));
     await userEvent.click(screen.getByRole('button', { name: '삭제' }));
     expect(screen.getByText("'말차' 품목을 삭제합니다. 모든 기기의 목록에서 사라지고, 지난 기록은 그대로 남습니다.")).toBeInTheDocument();
