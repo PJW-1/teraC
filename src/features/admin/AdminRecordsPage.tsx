@@ -1,6 +1,11 @@
-import { ComingSoon } from '../../components/ComingSoon';
+import { RecordList } from '../records/RecordList';
+import { PageHeader, PageShell } from './parts';
 
-// 서브에이전트가 채울 자리
 export function AdminRecordsPage() {
-  return <ComingSoon title="AdminRecordsPage" />;
+  return (
+    <PageShell>
+      <PageHeader title="조사 기록" />
+      <RecordList basePath="/admin/records" />
+    </PageShell>
+  );
 }
