@@ -24,7 +24,7 @@ export function StockPage() {
   const header = (
     <PageHeader
       title="재고 현황"
-      description={`품목마다 마지막으로 입력한 수량입니다. ${STALE_AFTER_DAYS}일 넘게 확인하지 않은 값은 "오래됨"으로 표시합니다.`}
+      description={`최근 30건의 조사 기록에서 품목마다 마지막으로 입력한 수량입니다. ${STALE_AFTER_DAYS}일 넘게 확인하지 않은 값은 "오래됨"으로 표시합니다.`}
     />
   );
 
