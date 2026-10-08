@@ -1,21 +1,23 @@
 import type { ComponentProps } from 'react';
 import { cn } from './cn';
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
-type Size = 'md' | 'lg' | 'icon';
+type Variant = 'primary' | 'secondary' | 'soft' | 'ghost' | 'danger';
+type Size = 'md' | 'lg' | 'icon' | 'icon-sm';
 
 const variants: Record<Variant, string> = {
   primary: 'bg-primary text-primary-fg hover:bg-primary/90',
   secondary: 'border border-border bg-surface text-fg hover:bg-muted-bg',
+  soft: 'bg-muted-bg text-fg hover:bg-border',
   ghost: 'bg-transparent text-fg hover:bg-muted-bg',
   danger: 'bg-danger text-white hover:bg-danger/90',
 };
 
-// Every size keeps the 44px minimum touch target.
+// Sizes keep the 44px touch target, except icon-sm (36px) for the dense +/- steppers in count rows.
 const sizes: Record<Size, string> = {
   md: 'min-h-touch px-4 text-base',
   lg: 'min-h-row px-5 text-lg',
   icon: 'size-touch',
+  'icon-sm': 'size-9',
 };
 
 export type ButtonProps = ComponentProps<'button'> & {

@@ -37,6 +37,40 @@ describe('count screen', () => {
     expect(screen.getByRole('button', { name: '조사 완료' })).toBeInTheDocument();
   });
 
+  describe('quantity pop on +/-', () => {
+    const animate = vi.fn();
+    beforeEach(() => {
+      animate.mockClear();
+      Object.defineProperty(HTMLElement.prototype, 'animate', { value: animate, configurable: true, writable: true });
+    });
+    afterEach(() => {
+      delete (HTMLElement.prototype as { animate?: unknown }).animate;
+      delete (window as { matchMedia?: unknown }).matchMedia;
+    });
+
+    it('gives the quantity box a short pop when stepped', async () => {
+      const user = userEvent.setup();
+      renderApp('/count');
+      const matcha = await screen.findByRole('textbox', { name: '말차 수량' });
+      await user.click(screen.getByRole('button', { name: '말차 늘리기' }));
+      expect(animate).toHaveBeenCalledTimes(1);
+      expect(animate.mock.contexts[0]).toBe(matcha);
+    });
+
+    it('skips the pop when the device asks for reduced motion', async () => {
+      Object.defineProperty(window, 'matchMedia', {
+        value: (query: string) => ({ matches: query.includes('reduce'), media: query }),
+        configurable: true,
+        writable: true,
+      });
+      const user = userEvent.setup();
+      renderApp('/count');
+      await screen.findByRole('textbox', { name: '말차 수량' });
+      await user.click(screen.getByRole('button', { name: '말차 늘리기' }));
+      expect(animate).not.toHaveBeenCalled();
+    });
+  });
+
   it('steps by 0.5, keeps 0 distinct from not entered and keeps the counts on the device', async () => {
     const user = userEvent.setup();
     renderApp('/count');

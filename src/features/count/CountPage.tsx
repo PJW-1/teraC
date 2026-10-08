@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { RotateCcw, Search, X } from 'lucide-react';
 import { useSearchParams } from 'react-router';
@@ -126,7 +127,7 @@ function CountScreen({ onSubmitted }: { onSubmitted: (recordId: string) => void 
           </div>
         )}
         {ready && visible.length > 0 && (
-          <nav aria-label="카테고리" className="-mx-4 mt-2 overflow-x-auto px-4">
+          <nav aria-label="카테고리" className="-mx-4 mt-2 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <ul className="flex gap-2">
               {visible.map(({ index, ...section }) => {
                 const n = enteredOf(section.items);
@@ -138,7 +139,8 @@ function CountScreen({ onSubmitted }: { onSubmitted: (recordId: string) => void 
                       className={cn(
                         'min-h-9 rounded-full border px-4 text-sm font-semibold whitespace-nowrap',
                         'transition-transform duration-(--duration-press) active:scale-[0.97]',
-                        n > 0 ? 'border-accent-fill bg-accent/10 text-accent' : 'border-border bg-surface text-fg',
+                        'transition-colors duration-(--duration-change)',
+                        n > 0 ? 'border-accent-fill bg-primary/20 text-fg' : 'border-border bg-surface text-fg',
                       )}
                     >
                       {section.category}
@@ -199,15 +201,19 @@ function CountScreen({ onSubmitted }: { onSubmitted: (recordId: string) => void 
         ))
       )}
 
-      {ready && items.length > 0 && (
-        <div className="fixed inset-x-0 bottom-[calc(var(--spacing-row)+env(safe-area-inset-bottom))] z-20 border-t border-border bg-surface/95 px-4 py-2 backdrop-blur">
-          <div className="mx-auto max-w-3xl">
-            <Button size="lg" fullWidth disabled={submitting} onClick={() => setSheetOpen(true)}>
-              {submitting ? '제출하는 중…' : entered > 0 ? `조사 완료 · 입력 ${entered}개` : '조사 완료'}
-            </Button>
-          </div>
-        </div>
-      )}
+      {/* 하단 바는 body 에 그린다: 화면 등장 효과(transform)가 도는 동안에도 화면 아래에 고정되게 */}
+      {ready &&
+        items.length > 0 &&
+        createPortal(
+          <div className="fixed inset-x-0 bottom-[calc(var(--spacing-row)+env(safe-area-inset-bottom))] z-20 animate-bar-in border-t border-border bg-surface/95 px-4 py-2 backdrop-blur">
+            <div className="mx-auto max-w-3xl">
+              <Button size="lg" fullWidth disabled={submitting} onClick={() => setSheetOpen(true)}>
+                {submitting ? '제출하는 중…' : entered > 0 ? `조사 완료 · 입력 ${entered}개` : '조사 완료'}
+              </Button>
+            </div>
+          </div>,
+          document.body,
+        )}
 
       <SubmitSheet
         open={sheetOpen}
