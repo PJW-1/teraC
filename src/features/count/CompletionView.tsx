@@ -5,19 +5,8 @@ import { Button, Card, ErrorState, SkeletonList } from '../../components/ui';
 import { fetchRecord, historyKeys } from '../../lib/inventory/historyApi';
 import { summarizeRecord } from '../../lib/inventory/records';
 import { inventoryReport } from '../../lib/report/inventoryReport';
-import { TIME_ZONE } from '../../lib/store';
-import { safeTimeZone } from '../../lib/timeZone';
 import { ReportActions } from '../records/ReportActions';
-
-const formatSubmittedAt = (iso: string) =>
-  new Date(iso).toLocaleString('ko-KR', {
-    month: 'long',
-    day: 'numeric',
-    weekday: 'short',
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone: safeTimeZone(TIME_ZONE),
-  });
+import { formatDateTime } from '../records/recordUtils';
 
 /** 제출한 뒤: 보고서 텍스트와 복사, 파일 저장 */
 export function CompletionView({ recordId, onNewCount }: { recordId: string; onNewCount: () => void }) {
@@ -37,7 +26,7 @@ export function CompletionView({ recordId, onNewCount }: { recordId: string; onN
     body = (
       <div className="flex flex-col gap-4">
         <Card>
-          <p className="text-sm text-fg-muted">{formatSubmittedAt(record.createdAt)}</p>
+          <p className="text-sm text-fg-muted">{formatDateTime(record.createdAt)}</p>
           <p className="mt-1 text-lg font-semibold">{`입력 ${summary.entered}개`}</p>
           {summary.zeros > 0 && <p className="text-sm font-semibold text-danger">{`0개 ${summary.zeros}개`}</p>}
         </Card>
