@@ -5,26 +5,26 @@
   --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo",
     "Noto Sans KR", "Malgun Gothic", sans-serif;
 
-  /* Brand colors come from the Tera Coffee storefront: espresso facade, gold sign letters, orange awning.
-     Backgrounds stay near neutral so the screen does not look orange. */
+  /* Brand colors come from the Tera Coffee logo: one warm yellow on white.
+     Yellow is a fill and border point only (1.6:1 on white); text stays dark. */
 
   /* Surfaces */
-  --color-bg: #f7f6f4;
+  --color-bg: #fafafa;
   --color-surface: #ffffff;
-  --color-border: #e8e3de;
-  --color-muted-bg: #f3f0ec;
+  --color-border: #ececec;
+  --color-muted-bg: #f4f4f5;
 
   /* Text */
-  --color-fg: #2b221d;
-  --color-fg-muted: #776a60;
+  --color-fg: #1d1d1f;
+  --color-fg-muted: #6e6e73;
 
-  /* Primary button and store header: espresso fill, gold text (8.1:1) */
-  --color-primary: #2b221d;
-  --color-primary-fg: #e3b552;
+  /* Primary button: logo yellow fill, dark text (10.4:1) */
+  --color-primary: #fbc33b;
+  --color-primary-fg: #1d1d1f;
 
-  /* Accent: #a85b00 for text (5.0:1), #cf7401 for fills and borders only (3.4:1, never text) */
-  --color-accent: #a85b00;
-  --color-accent-fill: #cf7401;
+  /* Accent: #8a6100 for text (5.5:1), logo yellow for fills and borders only (never text) */
+  --color-accent: #8a6100;
+  --color-accent-fill: #fbc33b;
 
   /* Status */
   --color-danger: #e11d48; /* low stock, zero */
@@ -37,17 +37,19 @@
   --radius-sheet: 24px;
 
   /* Shadows: cards are flat with a hairline, sheets and popovers float */
-  --shadow-card: 0 1px 2px rgb(43 34 29 / 0.04);
-  --shadow-sheet: 0 -8px 24px rgb(43 34 29 / 0.12);
-  --shadow-popover: 0 8px 24px rgb(43 34 29 / 0.12);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-sheet: 0 -8px 24px rgb(0 0 0 / 0.1);
+  --shadow-popover: 0 8px 24px rgb(0 0 0 / 0.1);
 
   /* Sizes: touch targets at least 44px, list rows at least 56px */
   --spacing-touch: 44px;
   --spacing-row: 56px;
 
-  /* Mobile type scale 12, 14, 16, 18, 22, 28; quantities 20px semibold */
+  /* Mobile type scale 12, 14, 15, 16, 18, 22, 28; item names 15px, quantities 20px semibold */
   --text-xs: 12px;
   --text-sm: 14px;
+  --text-item: 15px;
+  --text-item--line-height: 1.35;
   --text-base: 16px;
   --text-lg: 18px;
   --text-title: 22px;
@@ -63,6 +65,25 @@
   --duration-change: 180ms;
   --duration-sheet-open: 240ms;
   --duration-sheet-close: 180ms;
+  --duration-page: 240ms;
+
+  /* Page entrance: a short fade and rise. The bottom submit bar lives outside the page (portal),
+     because a transform on the page would unpin fixed children while it runs. */
+  --animate-page-in: page-in var(--duration-page) var(--ease-out) backwards;
+  --animate-bar-in: bar-in var(--duration-page) var(--ease-out) backwards;
+
+  @keyframes page-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+  @keyframes bar-in {
+    from {
+      opacity: 0;
+      transform: translateY(100%);
+    }
+  }
 }
 
 @layer base {

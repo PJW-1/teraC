@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { STORE_NAME } from '../lib/store';
@@ -47,6 +47,25 @@ describe('routes', () => {
     expect(links).toHaveLength(2);
     await user.click(links[1]);
     expect(router.state.location.pathname).toBe('/count');
+  });
+
+  it('plays the page entrance again when moving to another screen', async () => {
+    const user = userEvent.setup();
+    renderApp('/count');
+    await screen.findByRole('heading', { name: '재고 조사' });
+    const page = screen.getByRole('main').firstElementChild;
+    expect(page).toHaveClass('animate-page-in');
+
+    await user.click(within(screen.getByRole('navigation', { name: '주요 메뉴' })).getByRole('link', { name: '기록' }));
+    const next = screen.getByRole('main').firstElementChild;
+    expect(next).not.toBe(page);
+    expect(next).toHaveClass('animate-page-in');
+  });
+
+  it('keeps the count submit bar outside the animated page so it stays pinned', async () => {
+    renderApp('/count');
+    const submit = await screen.findByRole('button', { name: '조사 완료' });
+    expect(submit.closest('main')).toBeNull();
   });
 
   it('shows the not found page for an unknown path', async () => {

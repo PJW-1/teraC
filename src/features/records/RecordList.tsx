@@ -47,7 +47,7 @@ export function RecordList({ basePath }: { basePath: string }) {
               const { entered, zeros, enteredNames } = summarizeRecord(record);
               return (
                 <li key={record.id}>
-                  <Link to={`${basePath}/${record.id}`} className="flex min-h-row items-center gap-3 px-4 py-2 active:bg-muted-bg">
+                  <Link to={`${basePath}/${record.id}`} className="flex min-h-row items-center gap-3 px-4 py-2 transition-colors duration-(--duration-press) active:bg-muted-bg">
                     <span className="w-16 shrink-0 text-sm tabular-nums text-fg-muted">{formatTime(record.createdAt)}</span>
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate font-semibold">{`입력 ${entered}개`}</span>

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Boxes, ClipboardList, Ellipsis, History, LayoutDashboard, Package, type LucideIcon } from 'lucide-react';
+import { Boxes, ClipboardList, Crown, Ellipsis, History, LayoutDashboard, Package, type LucideIcon } from 'lucide-react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { BottomSheet, cn } from '../../components/ui';
 import { STORE_NAME } from '../../lib/store';
+import { tabIndicator } from './navStyles';
 
 type NavItem = { to: string; label: string; short: string; icon: LucideIcon; end?: boolean };
 
@@ -28,8 +29,9 @@ export function OwnerLayout() {
       <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-border bg-surface md:flex">
         <div className="py-4 pr-2 pl-5">
           <p className="text-xs font-semibold text-fg-muted">관리</p>
-          <Link to="/count" className="block truncate text-lg font-bold">
-            {STORE_NAME}
+          <Link to="/count" className="flex min-w-0 items-center gap-1.5">
+            <Crown className="size-5 shrink-0 fill-accent-fill text-accent-fill" aria-hidden />
+            <span className="truncate text-lg font-bold">{STORE_NAME}</span>
           </Link>
         </div>
         <nav aria-label="관리 메뉴" className="flex-1 px-3">
@@ -44,16 +46,20 @@ export function OwnerLayout() {
       </aside>
 
       {/* 모바일 머리글 */}
-      <header className="sticky top-0 z-30 bg-primary text-primary-fg md:hidden">
+      <header className="sticky top-0 z-30 border-b border-border bg-surface/90 backdrop-blur md:hidden">
         <div className="flex h-14 items-center px-4">
-          <Link to="/count" className="flex min-h-touch min-w-0 items-center">
+          <Link to="/count" className="flex min-h-touch min-w-0 items-center gap-1.5">
+            <Crown className="size-5 shrink-0 fill-accent-fill text-accent-fill" aria-hidden />
             <span className="truncate text-lg font-bold">{STORE_NAME}</span>
           </Link>
         </div>
       </header>
 
       <main className="min-w-0 flex-1 pb-[calc(var(--spacing-row)+env(safe-area-inset-bottom))] md:pb-0">
-        <Outlet />
+        {/* 화면을 옮길 때마다 새로 그려서 등장 효과를 다시 재생한다 */}
+        <div key={pathname} className="animate-page-in">
+          <Outlet />
+        </div>
       </main>
 
       {/* 모바일 하단 탭 */}
@@ -68,9 +74,12 @@ export function OwnerLayout() {
             <button
               type="button"
               onClick={() => setMoreOpen(true)}
-              className={cn(tabClass, moreActive ? 'text-accent' : 'text-fg-muted')}
+              aria-current={moreActive ? 'page' : undefined}
+              className={cn(tabClass, moreActive ? 'text-fg' : 'text-fg-muted')}
             >
-              <Ellipsis className="size-6" aria-hidden />
+              <span className={tabIndicator}>
+                <Ellipsis className="size-5" aria-hidden />
+              </span>
               더보기
             </button>
           </li>
@@ -91,13 +100,15 @@ export function OwnerLayout() {
 }
 
 const tabClass =
-  'flex min-h-row w-full flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-colors duration-(--duration-press)';
+  'group flex min-h-row w-full flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-[color,transform] duration-(--duration-press) active:scale-95';
 
 function TabLink({ item }: { item: NavItem }) {
   const Icon = item.icon;
   return (
-    <NavLink to={item.to} end={item.end} className={({ isActive }) => cn(tabClass, isActive ? 'text-accent' : 'text-fg-muted')}>
-      <Icon className="size-6" aria-hidden />
+    <NavLink to={item.to} end={item.end} className={({ isActive }) => cn(tabClass, isActive ? 'text-fg' : 'text-fg-muted')}>
+      <span className={tabIndicator}>
+        <Icon className="size-5" aria-hidden />
+      </span>
       {item.short}
     </NavLink>
   );
@@ -112,8 +123,8 @@ function SidebarLink({ item, onClick }: { item: NavItem; onClick?: () => void })
       onClick={onClick}
       className={({ isActive }) =>
         cn(
-          'flex min-h-touch items-center gap-3 rounded-control px-3 text-base font-semibold transition-colors duration-(--duration-press)',
-          isActive ? 'bg-accent/10 text-accent' : 'text-fg hover:bg-muted-bg',
+          'flex min-h-touch items-center gap-3 rounded-control px-3 text-base font-semibold transition-[background-color,transform] duration-(--duration-press) active:scale-[0.98]',
+          isActive ? 'bg-primary/25 text-fg' : 'text-fg hover:bg-muted-bg',
         )
       }
     >

@@ -47,7 +47,7 @@ export function CompletionView({ recordId, onNewCount }: { recordId: string; onN
   }
 
   return (
-    <section className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6">
+    <section className="mx-auto flex w-full max-w-3xl animate-page-in flex-col gap-4 px-4 py-6">
       <div className="flex items-center gap-2">
         <CircleCheck className="size-7 text-success" aria-hidden />
         <h1 className="text-title font-bold">제출했습니다</h1>
