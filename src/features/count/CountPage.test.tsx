@@ -99,6 +99,114 @@ describe('count screen', () => {
   });
 });
 
+describe('search', () => {
+  const search = async (user: ReturnType<typeof userEvent.setup>, term: string) => {
+    await user.type(await screen.findByRole('searchbox', { name: '품목 검색' }), term);
+  };
+
+  it('keeps only the items whose name matches, with their category', async () => {
+    const user = userEvent.setup();
+    renderApp('/count');
+    await search(user, '말');
+    expect(screen.getByRole('textbox', { name: '말차 수량' })).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: '바닐라 수량' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: '크루아상 수량' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent)).toEqual(['파우더']);
+    const chips = screen.getByRole('navigation', { name: '카테고리' });
+    expect(within(chips).queryByRole('button', { name: '베이커리' })).not.toBeInTheDocument();
+  });
+
+  it('matches the category name', async () => {
+    const user = userEvent.setup();
+    renderApp('/count');
+    await search(user, '베이커');
+    expect(screen.getByRole('textbox', { name: '크루아상 수량' })).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: '말차 수량' })).not.toBeInTheDocument();
+  });
+
+  it('ignores case and surrounding spaces', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem(
+      'inventory_items',
+      JSON.stringify([{ id: 'x', name: 'Oat Milk', category: '파우더', unit: '개', display_order: 0, count: null }]),
+    );
+    renderApp('/count');
+    await search(user, '  oAT ');
+    expect(screen.getByRole('textbox', { name: 'Oat Milk 수량' })).toBeInTheDocument();
+  });
+
+  it('shows an empty state with a button that clears the term', async () => {
+    const user = userEvent.setup();
+    renderApp('/count');
+    await search(user, '없는품목');
+    expect(screen.getByText("'없는품목'에 맞는 품목이 없습니다")).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: '말차 수량' })).not.toBeInTheDocument();
+    // 입력칸 옆 지우기 버튼과 빈 화면의 버튼이 둘 다 있다
+    const buttons = screen.getAllByRole('button', { name: '검색어 지우기' });
+    expect(buttons).toHaveLength(2);
+    await user.click(buttons[1]);
+    expect(screen.getByRole('searchbox', { name: '품목 검색' })).toHaveValue('');
+    expect(screen.getByRole('textbox', { name: '말차 수량' })).toBeInTheDocument();
+  });
+
+  it('shows the clear button only when there is a term', async () => {
+    const user = userEvent.setup();
+    renderApp('/count');
+    await screen.findByRole('searchbox', { name: '품목 검색' });
+    expect(screen.queryByRole('button', { name: '검색어 지우기' })).not.toBeInTheDocument();
+    await search(user, '말');
+    await user.click(screen.getByRole('button', { name: '검색어 지우기' }));
+    expect(screen.getByRole('searchbox', { name: '품목 검색' })).toHaveValue('');
+  });
+
+  it('keeps a count entered on an item while it is filtered out', async () => {
+    const user = userEvent.setup();
+    renderApp('/count');
+    await user.click(await screen.findByRole('button', { name: '말차 늘리기' }));
+    await search(user, '크루');
+    expect(screen.queryByRole('textbox', { name: '말차 수량' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '검색어 지우기' }));
+    expect(screen.getByRole('textbox', { name: '말차 수량' })).toHaveValue('0.5');
+  });
+
+  it('still counts every entered item on the bottom button while filtered', async () => {
+    const user = userEvent.setup();
+    renderApp('/count');
+    await user.click(await screen.findByRole('button', { name: '말차 늘리기' }));
+    await user.click(screen.getByRole('button', { name: '바닐라 줄이기' }));
+    await search(user, '크루');
+    expect(screen.getByRole('button', { name: '조사 완료 · 입력 2개' })).toBeInTheDocument();
+  });
+
+  it('submits every item and clears the term afterwards', async () => {
+    const user = userEvent.setup();
+    renderApp('/count');
+    await user.click(await screen.findByRole('button', { name: '말차 늘리기' }));
+    await search(user, '크루');
+    await user.click(screen.getByRole('button', { name: '조사 완료 · 입력 1개' }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '제출하기' }));
+    await screen.findByRole('heading', { name: '제출했습니다' });
+    expect(storedHistory()[0].items).toHaveLength(3);
+    await user.click(screen.getByRole('button', { name: '새 조사 시작' }));
+    expect(await screen.findByRole('searchbox', { name: '품목 검색' })).toHaveValue('');
+    expect(screen.getByRole('textbox', { name: '말차 수량' })).toBeInTheDocument();
+  });
+
+  it('clears the search and focuses the row when jumping to a hidden item', async () => {
+    const user = userEvent.setup();
+    renderApp('/count');
+    await user.click(await screen.findByRole('button', { name: '말차 늘리기' }));
+    await search(user, '말차');
+    await user.click(screen.getByRole('button', { name: '조사 완료 · 입력 1개' }));
+    const sheet = await screen.findByRole('dialog');
+    await user.click(within(sheet).getByText('미입력 품목 보기'));
+    await user.click(within(sheet).getByRole('button', { name: '크루아상' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByRole('searchbox', { name: '품목 검색' })).toHaveValue('');
+    await waitFor(() => expect(screen.getByRole('textbox', { name: '크루아상 수량' })).toHaveFocus());
+  });
+});
+
 describe('submitting', () => {
   it('saves a record, copies the report and shows the completion screen', async () => {
     const user = userEvent.setup();

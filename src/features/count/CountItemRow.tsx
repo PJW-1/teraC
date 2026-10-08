@@ -31,10 +31,10 @@ export function CountItemRow({ item, quantity, locked, onSet, onStep }: Props) {
   };
 
   return (
-    <li id={`item-${item.id}`} className={cn('flex min-h-row items-center gap-2 px-4 py-1.5', state !== 'empty' && 'bg-accent/5')}>
-      {/* 좁은 화면에서는 이름을 자르지 않고 두 줄로 보여 준다(품목을 알아볼 수 있게) */}
+    <li id={`item-${item.id}`} className={cn('flex min-h-row items-center gap-2 px-3 py-1.5', state !== 'empty' && 'bg-accent/5')}>
+      {/* 좁은 화면에서는 이름을 자르지 않고 두 줄로 보여 준다(품목을 알아볼 수 있게). 칸보다 긴 한 단어만 중간에서 끊는다. */}
       <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5">
-        <span className={cn('font-semibold leading-snug break-keep', state === 'empty' && 'text-fg-muted')}>{item.name}</span>
+        <span className={cn('font-semibold leading-snug break-keep wrap-anywhere', state === 'empty' && 'text-fg-muted')}>{item.name}</span>
         <span className="shrink-0 text-xs text-fg-muted">({item.unit})</span>
       </div>
       <Button variant="secondary" size="icon" aria-label={`${item.name} 줄이기`} disabled={locked} onClick={() => step(-1)}>

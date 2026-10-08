@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Boxes, ClipboardList, Ellipsis, History, LayoutDashboard, Package, type LucideIcon } from 'lucide-react';
-import { NavLink, Outlet, useLocation } from 'react-router';
+import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { BottomSheet, cn } from '../../components/ui';
 import { STORE_NAME } from '../../lib/store';
 
@@ -13,7 +13,7 @@ const primary: NavItem[] = [
 ];
 const secondary: NavItem[] = [
   { to: '/admin/items', label: '품목 관리', short: '품목', icon: Package },
-  { to: '/count', label: '직접 조사하기', short: '조사', icon: ClipboardList },
+  { to: '/count', label: '재고 조사', short: '조사', icon: ClipboardList },
 ];
 
 /** 관리 화면: 데스크톱은 사이드바, 모바일은 하단 탭(대시보드, 현황, 기록, 더보기) */
@@ -28,7 +28,9 @@ export function OwnerLayout() {
       <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-border bg-surface md:flex">
         <div className="py-4 pr-2 pl-5">
           <p className="text-xs font-semibold text-fg-muted">관리</p>
-          <p className="truncate text-lg font-bold">{STORE_NAME}</p>
+          <Link to="/count" className="block truncate text-lg font-bold">
+            {STORE_NAME}
+          </Link>
         </div>
         <nav aria-label="관리 메뉴" className="flex-1 px-3">
           <ul className="flex flex-col gap-1">
@@ -42,9 +44,11 @@ export function OwnerLayout() {
       </aside>
 
       {/* 모바일 머리글 */}
-      <header className="sticky top-0 z-30 border-b border-border bg-surface/95 backdrop-blur md:hidden">
+      <header className="sticky top-0 z-30 bg-primary text-primary-fg md:hidden">
         <div className="flex h-14 items-center px-4">
-          <span className="truncate text-lg font-bold">{STORE_NAME}</span>
+          <Link to="/count" className="flex min-h-touch min-w-0 items-center">
+            <span className="truncate text-lg font-bold">{STORE_NAME}</span>
+          </Link>
         </div>
       </header>
 

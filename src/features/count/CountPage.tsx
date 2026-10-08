@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Search, X } from 'lucide-react';
 import { useSearchParams } from 'react-router';
 import { BottomSheet, Button, cn, EmptyState, SkeletonList, toast } from '../../components/ui';
 import { groupByCategory } from '../../lib/inventory/catalog';
@@ -11,6 +11,7 @@ import { inventoryReport } from '../../lib/report/inventoryReport';
 import { copyText } from '../../lib/report/reportText';
 import { CompletionView } from './CompletionView';
 import { CountItemRow } from './CountItemRow';
+import { matchesSearch } from './search';
 import { SubmitSheet } from './SubmitSheet';
 
 /** /count. 제출한 뒤에는 완료 화면(?submitted=<기록 id>)을 보여 준다. */
@@ -27,8 +28,17 @@ function CountScreen({ onSubmitted }: { onSubmitted: (recordId: string) => void 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [term, setTerm] = useState('');
 
   const sections = useMemo(() => groupByCategory(items), [items]);
+  // 검색은 보이는 것만 거른다. 칩으로 이동할 id 는 전체 목록에서의 순서를 그대로 쓴다.
+  const visible = useMemo(
+    () =>
+      sections
+        .map((section, index) => ({ ...section, index, items: section.items.filter(item => matchesSearch(item, term)) }))
+        .filter(section => section.items.length > 0),
+    [sections, term],
+  );
   const countOf = (id: string) => counts[id] ?? null;
   const enteredOf = (list: typeof items) => list.filter(item => countOf(item.id) !== null).length;
   const entered = enteredOf(items);
@@ -40,6 +50,8 @@ function CountScreen({ onSubmitted }: { onSubmitted: (recordId: string) => void 
 
   const jumpToItem = (itemId: string) => {
     setSheetOpen(false);
+    // 검색에 가려진 품목이면 먼저 검색을 풀어 그 줄이 있게 한다
+    if (!visible.some(section => section.items.some(item => item.id === itemId))) setTerm('');
     // 시트가 닫힌 뒤에 옮겨야 포커스가 그 줄에 남는다
     setTimeout(() => {
       const row = document.getElementById(`item-${itemId}`);
@@ -61,6 +73,7 @@ function CountScreen({ onSubmitted }: { onSubmitted: (recordId: string) => void 
       void queryClient.invalidateQueries({ queryKey: historyKeys.all });
       queryClient.setQueryData(historyKeys.record(record.id), record);
       resetCounts();
+      setTerm('');
       void copied.then(ok => ok && toast.success('보고서 텍스트를 복사했습니다.'));
       onSubmitted(record.id);
     } catch (error) {
@@ -85,10 +98,37 @@ function CountScreen({ onSubmitted }: { onSubmitted: (recordId: string) => void 
         {source === 'offline' && (
           <p className="mt-1 text-xs text-warning">서버에 연결하지 못해 이 기기에 받아 둔 품목 목록을 보여 주고 있습니다.</p>
         )}
-        {ready && sections.length > 0 && (
+        {ready && items.length > 0 && (
+          <div className="relative mt-2">
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-fg-muted" aria-hidden />
+            <input
+              type="search"
+              autoComplete="off"
+              aria-label="품목 검색"
+              placeholder="품목 또는 카테고리 검색"
+              value={term}
+              onChange={e => setTerm(e.target.value)}
+              className={cn(
+                'h-10 w-full rounded-control border border-border bg-surface pr-10 pl-9 text-base outline-none',
+                'placeholder:text-fg-muted focus-visible:border-accent [&::-webkit-search-cancel-button]:hidden',
+              )}
+            />
+            {term !== '' && (
+              <button
+                type="button"
+                aria-label="검색어 지우기"
+                onClick={() => setTerm('')}
+                className="absolute top-0 right-0 flex size-10 items-center justify-center text-fg-muted"
+              >
+                <X className="size-4" aria-hidden />
+              </button>
+            )}
+          </div>
+        )}
+        {ready && visible.length > 0 && (
           <nav aria-label="카테고리" className="-mx-4 mt-2 overflow-x-auto px-4">
             <ul className="flex gap-2">
-              {sections.map((section, index) => {
+              {visible.map(({ index, ...section }) => {
                 const n = enteredOf(section.items);
                 return (
                   <li key={section.category} className="shrink-0">
@@ -96,7 +136,7 @@ function CountScreen({ onSubmitted }: { onSubmitted: (recordId: string) => void 
                       type="button"
                       onClick={() => jumpTo(`category-${index}`)}
                       className={cn(
-                        'min-h-touch rounded-full border px-4 text-sm font-semibold whitespace-nowrap',
+                        'min-h-9 rounded-full border px-4 text-sm font-semibold whitespace-nowrap',
                         'transition-transform duration-(--duration-press) active:scale-[0.97]',
                         n > 0 ? 'border-accent-fill bg-accent/10 text-accent' : 'border-border bg-surface text-fg',
                       )}
@@ -123,18 +163,27 @@ function CountScreen({ onSubmitted }: { onSubmitted: (recordId: string) => void 
         </div>
       ) : items.length === 0 ? (
         <EmptyState title="조사할 품목이 없습니다" description="관리 > 품목 관리에서 품목을 추가하면 여기에 표시됩니다." />
+      ) : visible.length === 0 ? (
+        <EmptyState
+          title={`'${term.trim()}'에 맞는 품목이 없습니다`}
+          action={
+            <Button variant="secondary" onClick={() => setTerm('')}>
+              검색어 지우기
+            </Button>
+          }
+        />
       ) : (
-        sections.map((section, index) => (
+        visible.map(({ index, ...section }) => (
           <section
             key={section.category}
             id={`category-${index}`}
             aria-labelledby={`category-title-${index}`}
-            className="scroll-mt-44"
+            className="scroll-mt-56"
           >
             <h2 id={`category-title-${index}`} className="bg-bg px-4 pt-5 pb-2 text-sm font-bold text-fg-muted">
               {section.category}
             </h2>
-            <ul className="divide-y divide-border border-y border-border bg-surface">
+            <ul className="mx-3 divide-y divide-border overflow-hidden rounded-card border border-border bg-surface">
               {section.items.map(item => (
                 <CountItemRow
                   key={item.id}

@@ -1,5 +1,5 @@
 import { ClipboardList, History, LayoutDashboard } from 'lucide-react';
-import { NavLink, Outlet } from 'react-router';
+import { Link, NavLink, Outlet } from 'react-router';
 import { cn } from '../../components/ui';
 import { STORE_NAME } from '../../lib/store';
 
@@ -14,9 +14,12 @@ const tabs = [
 export function StaffLayout() {
   return (
     <div className="flex min-h-dvh flex-col bg-bg">
-      <header className="sticky top-0 z-30 border-b border-border bg-surface/95 backdrop-blur">
+      <header className="sticky top-0 z-30 bg-primary text-primary-fg">
         <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-2 px-4">
-          <span className="truncate text-lg font-bold">{STORE_NAME}</span>
+          {/* 매장 이름은 홈 버튼: 어느 화면에서든 재고 조사로 돌아온다 */}
+          <Link to="/count" className="flex min-h-touch min-w-0 items-center">
+            <span className="truncate text-lg font-bold">{STORE_NAME}</span>
+          </Link>
         </div>
       </header>
 

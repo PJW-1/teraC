@@ -5,38 +5,41 @@
   --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo",
     "Noto Sans KR", "Malgun Gothic", sans-serif;
 
+  /* Brand colors come from the Tera Coffee storefront: espresso facade, gold sign letters, orange awning.
+     Backgrounds stay near neutral so the screen does not look orange. */
+
   /* Surfaces */
-  --color-bg: #fafaf9;
+  --color-bg: #f7f6f4;
   --color-surface: #ffffff;
-  --color-border: #e7e5e4;
-  --color-muted-bg: #f5f5f4;
+  --color-border: #e8e3de;
+  --color-muted-bg: #f3f0ec;
 
   /* Text */
-  --color-fg: #1c1917;
-  --color-fg-muted: #78716c;
+  --color-fg: #2b221d;
+  --color-fg-muted: #776a60;
 
-  /* Primary button: dark fill, white text */
-  --color-primary: #1c1917;
-  --color-primary-fg: #ffffff;
+  /* Primary button and store header: espresso fill, gold text (8.1:1) */
+  --color-primary: #2b221d;
+  --color-primary-fg: #e3b552;
 
-  /* Accent: #b45309 for text, #d97706 for fills only (3.2:1, never text) */
-  --color-accent: #b45309;
-  --color-accent-fill: #d97706;
+  /* Accent: #a85b00 for text (5.0:1), #cf7401 for fills and borders only (3.4:1, never text) */
+  --color-accent: #a85b00;
+  --color-accent-fill: #cf7401;
 
   /* Status */
   --color-danger: #e11d48; /* low stock, zero */
   --color-success: #047857; /* increase, normal */
   --color-warning: #c2410c; /* decrease */
 
-  /* Radii: controls 10px, cards 16px, sheet top 24px, chips fully round */
-  --radius-control: 10px;
+  /* Radii: controls 12px, cards 16px, sheet top 24px, chips fully round */
+  --radius-control: 12px;
   --radius-card: 16px;
   --radius-sheet: 24px;
 
   /* Shadows: cards are flat with a hairline, sheets and popovers float */
-  --shadow-card: 0 1px 2px rgb(28 25 23 / 0.04);
-  --shadow-sheet: 0 -8px 24px rgb(28 25 23 / 0.12);
-  --shadow-popover: 0 8px 24px rgb(28 25 23 / 0.12);
+  --shadow-card: 0 1px 2px rgb(43 34 29 / 0.04);
+  --shadow-sheet: 0 -8px 24px rgb(43 34 29 / 0.12);
+  --shadow-popover: 0 8px 24px rgb(43 34 29 / 0.12);
 
   /* Sizes: touch targets at least 44px, list rows at least 56px */
   --spacing-touch: 44px;
